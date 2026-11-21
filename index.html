@@ -181,9 +181,7 @@
       border-color: var(--accent);
     }
 
-    #modelSelect {
-      max-width: 250px;
-    }
+    #modelSelect { max-width: 250px; }
     #customOrModelInput {
       height: 32px;
       width: 190px;
@@ -507,6 +505,8 @@
       border-radius: 6px;
       background: var(--bg-base);
       padding: 14px 17px;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 240px;
     }
     .msg-card.user {
       background: var(--bg-panel);
@@ -568,6 +568,14 @@
       max-height: 340px;
       overflow-y: auto;
     }
+    .thought-raw {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.4px;
+      line-height: 1.56;
+      color: var(--text-soft);
+    }
 
     /* Markdown & Code */
     .markdown-body {
@@ -576,8 +584,12 @@
       color: var(--text);
       overflow-wrap: anywhere;
     }
-    .markdown-body > *:first-child { margin-top: 0; }
-    .markdown-body > *:last-child { margin-bottom: 0; }
+    .markdown-body > *:first-child,
+    .md-chunk > *:first-child { margin-top: 0; }
+    .markdown-body > *:last-child,
+    .md-chunk > *:last-child { margin-bottom: 0; }
+    .md-chunk + .md-chunk { margin-top: 9px; }
+
     .markdown-body h1, .markdown-body h2, .markdown-body h3 {
       margin: 15px 0 7px;
       font-size: 16px;
@@ -1162,7 +1174,6 @@ Query cand by query tin-tout, then check
       "3.8-flash": { modelId: "gemini-3.8-flash", supportsXhigh: false, label: "3.8 Flash", contextLength: 1048576 },
     };
 
-    // Fallback curated free CP models on OpenRouter (live-updated via /api/v1/models)
     const FALLBACK_OR_FREE_MODELS = [
       { id: "nvidia/nemotron-3-ultra:free", name: "Nemotron 3 Ultra (free)", contextLength: 1048576, supportsReasoning: true, score: 95 },
       { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (free)", contextLength: 1048576, supportsReasoning: true, score: 92 },
@@ -1173,7 +1184,7 @@ Query cand by query tin-tout, then check
       { id: "openrouter/free", name: "OpenRouter Free Auto-Router", contextLength: 200000, supportsReasoning: true, score: 75 },
     ];
 
-    const OR_MODELS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+    const OR_MODELS_CACHE_TTL = 6 * 60 * 60 * 1000;
     const DEFAULT_GEMINI_FREE_RPD = 20;
     const DEFAULT_OR_FREE_RPD = 50;
 
@@ -1312,7 +1323,6 @@ Query cand by query tin-tout, then check
         thinkMed: "Thinking: Vừa (Medium)",
         thinkHigh: "Thinking: Cao (High)",
         thinkXHigh: "Thinking: Tối đa (Extra High)",
-        thinkNA: "Thinking: Mặc định",
         interruptNote: "[Người dùng đã dừng giữa quá trình suy nghĩ để chỉnh sửa hướng hiểu bài]",
         viewingHistoryPrefix: "Đang xem lịch sử:",
         btnRestoreHistory: "Nạp lại để chat tiếp",
@@ -1334,10 +1344,7 @@ Query cand by query tin-tout, then check
         rpdSynced: "Đã đồng bộ RPD từ OpenRouter!",
         quickSwitchOR: "Dùng OpenRouter (:free)",
         orCustomOpt: "✎ Nhập Model ID khác...",
-        orRefreshing: "Đang tải danh sách :free...",
         orRefreshBtnTip: "Cập nhật danh sách model :free mới nhất từ OpenRouter",
-        autoSwitchedModal: "Đã tự nhận diện key OpenRouter!",
-        autoSwitchedModalGemini: "Đã tự nhận diện key Gemini!",
       },
       en: {
         btnTemplate: "Templates",
@@ -1452,7 +1459,6 @@ Query cand by query tin-tout, then check
         thinkMed: "Thinking: Medium",
         thinkHigh: "Thinking: High",
         thinkXHigh: "Thinking: Extra High",
-        thinkNA: "Thinking: Default",
         interruptNote: "[User stopped generation during thinking to prune/correct problem understanding]",
         viewingHistoryPrefix: "Viewing history:",
         btnRestoreHistory: "Load as Active Session",
@@ -1474,10 +1480,7 @@ Query cand by query tin-tout, then check
         rpdSynced: "Synced RPD from OpenRouter!",
         quickSwitchOR: "Switch to OpenRouter (:free)",
         orCustomOpt: "✎ Custom Model ID...",
-        orRefreshing: "Loading :free models...",
         orRefreshBtnTip: "Refresh live :free CP models from OpenRouter",
-        autoSwitchedModal: "Detected OpenRouter key!",
-        autoSwitchedModalGemini: "Detected Gemini key!",
       },
     };
 
@@ -1568,7 +1571,7 @@ Query cand by query tin-tout, then check
     }
 
     function saveRpdStore(store) {
-      localStorage.setItem(LS_KEYS.rpdData, JSON.stringify(store));
+      try { localStorage.setItem(LS_KEYS.rpdData, JSON.stringify(store)); } catch {}
     }
 
     function incrementRpd(provider) {
@@ -1600,9 +1603,6 @@ Query cand by query tin-tout, then check
           if (typeof data.free_model_daily_requests.limit === "number") {
             store.openrouter.limit = data.free_model_daily_requests.limit;
           }
-        } else if (data.is_free_tier === false) {
-          // Account has purchased credits; :free daily cap is 1000 if >=$10, keep existing or set 1000
-          if (store.openrouter.limit < 50) store.openrouter.limit = 50;
         }
         saveRpdStore(store);
         renderTelemetry();
@@ -1633,8 +1633,6 @@ Query cand by query tin-tout, then check
       if (/coder|code|reasoning|thinking|math|ultra|pro|super|lightning|flash/.test(id + " " + name)) score += 15;
       if (ctx >= 200000) score += 10;
       else if (ctx >= 100000) score += 5;
-
-      // Penalize very small models for hard CP tasks
       if (/\b(1b|1\.7b|2b|3b|4b|7b|8b|nano)\b/.test(id + " " + name)) score -= 22;
 
       return { score, supportsReasoning };
@@ -1695,10 +1693,11 @@ Query cand by query tin-tout, then check
 
         if (freeText.length > 0) {
           state.orModels = freeText;
-          localStorage.setItem(LS_KEYS.orModelsCache, JSON.stringify({ ts: Date.now(), models: freeText }));
+          try {
+            localStorage.setItem(LS_KEYS.orModelsCache, JSON.stringify({ ts: Date.now(), models: freeText }));
+          } catch {}
         }
       } catch {
-        // Fallback to cached or built-in list silently
       } finally {
         if (btn) btn.disabled = false;
         if (state.provider === "openrouter") {
@@ -1767,7 +1766,6 @@ Query cand by query tin-tout, then check
         return;
       }
 
-      // OpenRouter mode
       $("btnRefreshOrModels").classList.remove("hidden");
       $("btnRefreshOrModels").title = t("orRefreshBtnTip");
 
@@ -1835,7 +1833,6 @@ Query cand by query tin-tout, then check
         `${t("tokOut")} <b>${fmtNum(s.output)}</b> | ` +
         `${t("tokTotal")} <b>${fmtNum(s.total)}</b>`;
 
-      // RPD display
       const rpdStore = loadRpdStore();
       const rpdEl = $("rpdCounter");
       const quickBtn = $("btnQuickSwitchOR");
@@ -2134,10 +2131,85 @@ ${tpl.gen.trim()}
     }
 
     // =========================================================================
-    // 8. MARKDOWN + KATEX + HIGHLIGHT.JS RENDERING
+    // 8. HIGH-PERFORMANCE INCREMENTAL MARKDOWN + KATEX + HLJS RENDERER
     // =========================================================================
+    function isNearBottom(el, threshold = 110) {
+      return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    }
+
+    function splitMarkdownBlocks(raw) {
+      if (!raw) return [];
+      const lines = raw.split("\n");
+      const blocks = [];
+      let cur = [];
+      let inFence = null;
+      let inDisplayMath = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        const openFenceMatch = !inFence ? line.match(/^\s{0,3}(`{3,}|~{3,})/) : null;
+        if (openFenceMatch) {
+          inFence = { ch: openFenceMatch[1][0], len: openFenceMatch[1].length };
+        } else if (inFence) {
+          const closeMatch = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+          if (closeMatch && closeMatch[1][0] === inFence.ch && closeMatch[1].length >= inFence.len) {
+            inFence = null;
+          }
+        }
+
+        if (!inFence) {
+          const dollarMatches = line.replace(/\\\$\$/g, "").match(/\$\$/g);
+          if (dollarMatches && dollarMatches.length % 2 === 1) {
+            inDisplayMath = !inDisplayMath;
+          }
+        }
+
+        cur.push(line);
+
+        if (line.trim() === "" && !inFence && !inDisplayMath && cur.length > 0) {
+          // Look ahead to next non-empty line to avoid breaking numbered/bulleted lists or blockquotes
+          let nextNonEmpty = "";
+          for (let j = i + 1; j < lines.length; j++) {
+            if (lines[j].trim() !== "") {
+              nextNonEmpty = lines[j];
+              break;
+            }
+          }
+          const prevNonEmpty = [...cur].reverse().find((l) => l.trim() !== "") || "";
+          const prevIsListOrQuote = /^\s*(?:[-*+]|\d+[.)])\s|^\s*>/.test(prevNonEmpty);
+          const nextIsListCont = /^\s*(?:[-*+]|\d+[.)])\s|^\s*>|^(?:\t| {4})\S/.test(nextNonEmpty);
+
+          if (!(prevIsListOrQuote && nextIsListCont)) {
+            const chunk = cur.join("\n").trim();
+            if (chunk) blocks.push(chunk);
+            cur = [];
+          }
+        }
+      }
+
+      const tail = cur.join("\n").trim();
+      if (tail) blocks.push(tail);
+      return blocks;
+    }
+
+    function hasUnclosedFence(blockText) {
+      const lines = blockText.split("\n");
+      let inFence = null;
+      for (const line of lines) {
+        if (!inFence) {
+          const m = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+          if (m) inFence = { ch: m[1][0], len: m[1].length };
+        } else {
+          const m = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+          if (m && m[1][0] === inFence.ch && m[1].length >= inFence.len) inFence = null;
+        }
+      }
+      return Boolean(inFence);
+    }
+
     function renderMarkdown(container, rawMarkdown, options = {}) {
-      const { escapeRawTags = false } = options;
+      const { escapeRawTags = false, skipHighlight = false, skipMath = false } = options;
 
       const codeBlocks = [];
       let text = rawMarkdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
@@ -2171,7 +2243,7 @@ ${tpl.gen.trim()}
         const codeEl = pre.querySelector("code");
         if (!codeEl) return;
 
-        if (window.hljs && typeof window.hljs.highlightElement === "function") {
+        if (!skipHighlight && window.hljs && typeof window.hljs.highlightElement === "function") {
           try { window.hljs.highlightElement(codeEl); } catch {}
         }
 
@@ -2195,7 +2267,7 @@ ${tpl.gen.trim()}
         pre.appendChild(toolbar);
       });
 
-      if (typeof window.renderMathInElement === "function") {
+      if (!skipMath && typeof window.renderMathInElement === "function") {
         try {
           window.renderMathInElement(container, {
             delimiters: [
@@ -2208,6 +2280,117 @@ ${tpl.gen.trim()}
           });
         } catch {}
       }
+    }
+
+    // Non-blocking frame-budgeted async renderer for large thinking blocks & history
+    function renderMarkdownAsync(container, rawMarkdown, options = {}) {
+      const token = (container._asyncRenderToken = (container._asyncRenderToken || 0) + 1);
+      if (!rawMarkdown) {
+        container.innerHTML = "";
+        return;
+      }
+      if (rawMarkdown.length < 5000) {
+        renderMarkdown(container, rawMarkdown, options);
+        return;
+      }
+
+      const blocks = splitMarkdownBlocks(rawMarkdown);
+      container.innerHTML = "";
+      let idx = 0;
+
+      function step() {
+        if (container._asyncRenderToken !== token) return;
+        const frameStart = performance.now();
+        const frag = document.createDocumentFragment();
+        while (idx < blocks.length) {
+          const div = document.createElement("div");
+          div.className = "md-chunk";
+          renderMarkdown(div, blocks[idx], options);
+          frag.appendChild(div);
+          idx++;
+          if (performance.now() - frameStart >= 12) break;
+        }
+        container.appendChild(frag);
+        if (idx < blocks.length) {
+          requestAnimationFrame(step);
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    // Incremental block-cached streaming renderer for answers
+    function createStreamRenderer(container, scrollParent) {
+      let lastRenderTime = 0;
+      let lastRenderCost = 0;
+      let pendingRaf = null;
+      let latestText = "";
+
+      function sync(raw, isFinal) {
+        const blocks = splitMarkdownBlocks(raw);
+        if (blocks.length === 0) return;
+
+        const stickToBottom = scrollParent && state.viewingHistoryId === null && isNearBottom(scrollParent);
+        const start = performance.now();
+
+        // Remove excess trailing chunks if text shrank
+        while (container.children.length > blocks.length) {
+          container.lastElementChild.remove();
+        }
+
+        for (let i = 0; i < blocks.length; i++) {
+          const blockText = blocks[i];
+          const isLast = i === blocks.length - 1;
+          let chunk = container.children[i];
+
+          if (!chunk) {
+            chunk = document.createElement("div");
+            chunk.className = "md-chunk";
+            container.appendChild(chunk);
+          }
+
+          if (chunk._raw === blockText && (!isLast || !isFinal || chunk._finalized)) {
+            continue;
+          }
+
+          const unclosed = isLast && !isFinal && hasUnclosedFence(blockText);
+          renderMarkdown(chunk, blockText, {
+            skipHighlight: unclosed || (isLast && !isFinal && blockText.length > 3000),
+            skipMath: unclosed,
+          });
+          chunk._raw = blockText;
+          chunk._finalized = !isLast || isFinal;
+        }
+
+        lastRenderCost = performance.now() - start;
+        lastRenderTime = performance.now();
+
+        if (stickToBottom) {
+          scrollParent.scrollTop = scrollParent.scrollHeight;
+        }
+      }
+
+      return {
+        update(raw) {
+          latestText = raw;
+          if (pendingRaf) return;
+          const adaptiveGap = Math.max(110, Math.min(550, lastRenderCost * 4));
+          if (performance.now() - lastRenderTime < adaptiveGap) return;
+
+          pendingRaf = requestAnimationFrame(() => {
+            pendingRaf = null;
+            sync(latestText, false);
+          });
+        },
+        finalize(raw) {
+          if (pendingRaf) {
+            cancelAnimationFrame(pendingRaf);
+            pendingRaf = null;
+          }
+          latestText = raw;
+          sync(raw, true);
+        },
+      };
     }
 
     // =========================================================================
@@ -2256,6 +2439,7 @@ ${tpl.gen.trim()}
 
     function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem", providerName = "Gemini") {
       const list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]");
+      const safeThought = thoughtText && thoughtText.length > 80000 ? thoughtText.slice(0, 80000) + "\n...[truncated]" : (thoughtText || "");
       list.unshift({
         id: Date.now(),
         title: title.slice(0, 60),
@@ -2263,13 +2447,35 @@ ${tpl.gen.trim()}
         providerName,
         userText,
         answerText,
-        thoughtText: thoughtText || "",
+        thoughtText: safeThought,
         usage: usage || null,
         sessionType,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       });
-      localStorage.setItem(LS_KEYS.history, JSON.stringify(list.slice(0, 20)));
+
+      let trimmed = list.slice(0, 20);
+      while (trimmed.length > 0) {
+        try {
+          localStorage.setItem(LS_KEYS.history, JSON.stringify(trimmed));
+          break;
+        } catch {
+          trimmed.pop();
+        }
+      }
       renderHistoryList();
+    }
+
+    function setupLazyThoughtBox(tb, thoughtContent, thoughtText) {
+      tb.classList.remove("hidden");
+      tb.open = false;
+      tb.querySelector("summary").textContent = t("thinkingDone");
+      tb._rendered = false;
+      tb.addEventListener("toggle", () => {
+        if (tb.open && !tb._rendered) {
+          tb._rendered = true;
+          renderMarkdownAsync(thoughtContent, thoughtText);
+        }
+      });
     }
 
     function previewHistoryItem(item) {
@@ -2284,14 +2490,10 @@ ${tpl.gen.trim()}
       card.querySelector(".status-text").style.color = "var(--green)";
 
       if (item.thoughtText) {
-        const tb = card.querySelector(".thought-box");
-        tb.classList.remove("hidden");
-        tb.open = false;
-        tb.querySelector("summary").textContent = t("thinkingDone");
-        renderMarkdown(tb.querySelector(".thought-content"), item.thoughtText);
+        setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
       }
 
-      renderMarkdown(card.querySelector(".answer-body"), item.answerText);
+      renderMarkdownAsync(card.querySelector(".answer-body"), item.answerText);
 
       if (item.usage) {
         const tokEl = card.querySelector(".msg-tokens");
@@ -2305,7 +2507,8 @@ ${tpl.gen.trim()}
     }
 
     function renderHistoryList() {
-      const list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]");
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]"); } catch {}
       const el = $("historyList");
       if (!list.length) {
         el.innerHTML = `<div style="font-size:12px; color:var(--muted);">${t("historyEmpty")}</div>`;
@@ -2426,6 +2629,7 @@ ${tpl.gen.trim()}
       $("btnStop").classList.remove("hidden");
       updateViewModeUI();
 
+      const liveBox = $("liveOutputScroll");
       const statusEl = card.querySelector(".status-text");
       const thoughtBox = card.querySelector(".thought-box");
       const thoughtSummary = thoughtBox.querySelector("summary");
@@ -2433,6 +2637,47 @@ ${tpl.gen.trim()}
       const answerEl = card.querySelector(".answer-body");
       const sourcesEl = card.querySelector(".sources-bar");
       const tokensEl = card.querySelector(".msg-tokens");
+
+      const streamRenderer = createStreamRenderer(answerEl, liveBox);
+      let rawThoughtEl = null;
+      let thoughtRafPending = false;
+      let lastThoughtFlush = 0;
+
+      function flushThoughtRaw() {
+        if (!fullThought) return;
+        if (!rawThoughtEl) {
+          rawThoughtEl = document.createElement("div");
+          rawThoughtEl.className = "thought-raw";
+          thoughtContent.innerHTML = "";
+          thoughtContent.appendChild(rawThoughtEl);
+        }
+        const stickThought = isNearBottom(thoughtContent, 70);
+        rawThoughtEl.textContent = fullThought;
+        if (stickThought) {
+          thoughtContent.scrollTop = thoughtContent.scrollHeight;
+        }
+        lastThoughtFlush = performance.now();
+      }
+
+      function finalizeThoughtDisplay() {
+        if (!fullThought) return;
+        thoughtSummary.textContent = t("thinkingDone");
+        if (thoughtBox.open) {
+          thoughtBox._rendered = true;
+          renderMarkdownAsync(thoughtContent, fullThought);
+        } else {
+          thoughtBox._rendered = false;
+          if (!thoughtBox._lazyBound) {
+            thoughtBox._lazyBound = true;
+            thoughtBox.addEventListener("toggle", () => {
+              if (thoughtBox.open && !thoughtBox._rendered) {
+                thoughtBox._rendered = true;
+                renderMarkdownAsync(thoughtContent, fullThought);
+              }
+            });
+          }
+        }
+      }
 
       let fullThought = "";
       let fullAnswer = "";
@@ -2462,15 +2707,12 @@ ${tpl.gen.trim()}
           throw err;
         }
 
-        // Request accepted by API -> count RPD
         countedRpd = true;
         incrementRpd(provider);
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
-        let lastThoughtRender = 0;
-        let lastAnswerRender = 0;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -2479,6 +2721,9 @@ ${tpl.gen.trim()}
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split(/\r?\n/);
           buffer = lines.pop() || "";
+
+          let gotThought = false;
+          let gotAnswer = false;
 
           for (const rawLine of lines) {
             const line = rawLine.trim();
@@ -2528,11 +2773,12 @@ ${tpl.gen.trim()}
               if (thoughtChunk) {
                 fullThought += thoughtChunk;
                 thoughtBox.classList.remove("hidden");
-                thoughtBox.open = true;
+                gotThought = true;
               }
 
               if (typeof delta.content === "string" && delta.content) {
                 fullAnswer += delta.content;
+                gotAnswer = true;
               }
 
               const annotations = delta.annotations || choice.message?.annotations || [];
@@ -2559,9 +2805,10 @@ ${tpl.gen.trim()}
                 if (part.thought) {
                   fullThought += part.text;
                   thoughtBox.classList.remove("hidden");
-                  thoughtBox.open = true;
+                  gotThought = true;
                 } else {
                   fullAnswer += part.text;
+                  gotAnswer = true;
                 }
               }
 
@@ -2573,34 +2820,27 @@ ${tpl.gen.trim()}
                 }
               }
             }
+          }
 
-            const now = performance.now();
-            if (fullThought && now - lastThoughtRender > 120) {
-              renderMarkdown(thoughtContent, fullThought);
-              thoughtContent.scrollTop = thoughtContent.scrollHeight;
-              lastThoughtRender = now;
-            }
-            if (fullAnswer && now - lastAnswerRender > 100) {
-              renderMarkdown(answerEl, fullAnswer);
-              lastAnswerRender = now;
-              if (state.viewingHistoryId === null) {
-                $("liveOutputScroll").scrollTop = $("liveOutputScroll").scrollHeight;
-              }
-            }
+          if (gotThought && !thoughtRafPending && performance.now() - lastThoughtFlush > 60) {
+            thoughtRafPending = true;
+            requestAnimationFrame(() => {
+              thoughtRafPending = false;
+              flushThoughtRaw();
+            });
+          }
+          if (gotAnswer) {
+            streamRenderer.update(fullAnswer);
           }
         }
 
-        if (fullThought) {
-          renderMarkdown(thoughtContent, fullThought);
-        }
-
         if (fullAnswer) {
-          renderMarkdown(answerEl, fullAnswer);
+          streamRenderer.finalize(fullAnswer);
         } else {
           answerEl.innerHTML = `<span style="color:var(--muted);">${t("noTextWarn")}</span>`;
         }
 
-        thoughtSummary.textContent = t("thinkingDone");
+        finalizeThoughtDisplay();
 
         if (collectedSources.length > 0) {
           sourcesEl.classList.remove("hidden");
@@ -2635,15 +2875,14 @@ ${tpl.gen.trim()}
 
         statusEl.textContent = t("statusDone");
         statusEl.style.color = "var(--green)";
-        if (state.viewingHistoryId === null) {
-          $("liveOutputScroll").scrollTop = $("liveOutputScroll").scrollHeight;
+        if (state.viewingHistoryId === null && isNearBottom(liveBox, 160)) {
+          liveBox.scrollTop = liveBox.scrollHeight;
         }
         onComplete(fullAnswer, fullThought, latestUsage, false);
       } catch (err) {
         if (err.name === "AbortError") {
-          if (fullThought) renderMarkdown(thoughtContent, fullThought);
-          if (fullAnswer) renderMarkdown(answerEl, fullAnswer);
-          thoughtSummary.textContent = t("thinkingDone");
+          if (fullAnswer) streamRenderer.finalize(fullAnswer);
+          finalizeThoughtDisplay();
           statusEl.textContent = t("statusStopped");
           statusEl.style.color = "var(--amber)";
           if (latestUsage) {
@@ -2656,11 +2895,10 @@ ${tpl.gen.trim()}
           }
           onComplete(fullAnswer, fullThought, latestUsage, true);
         } else {
-          if (fullThought) renderMarkdown(thoughtContent, fullThought);
+          finalizeThoughtDisplay();
           statusEl.textContent = t("statusError");
           statusEl.style.color = "var(--red)";
 
-          // If Gemini hit 429 rate limit, mark RPD full & offer 1-click OpenRouter switch
           const isRateLimit = err.httpStatus === 429 || /quota|rate.?limit|429|exhausted/i.test(err.message || "");
           if (provider === "gemini" && isRateLimit && !countedRpd) {
             const store = loadRpdStore();
@@ -2751,7 +2989,6 @@ ${tpl.gen.trim()}
       renderTelemetry();
     });
 
-    // RPD click to adjust / sync
     $("rpdCounter").addEventListener("click", async () => {
       const store = loadRpdStore();
       if (state.provider === "openrouter") {
@@ -2777,7 +3014,6 @@ ${tpl.gen.trim()}
       }
     });
 
-    // API Key Modal
     let modalProvider = state.provider;
     let pendingModalTier = getActiveTier();
 
@@ -2837,7 +3073,6 @@ ${tpl.gen.trim()}
     $("btnSaveApi").addEventListener("click", () => {
       const val = $("apiKeyInput").value.trim();
 
-      // Auto-detect key type if user pasted into the opposite tab
       let saveTarget = modalProvider;
       if (val.startsWith("sk-or-")) saveTarget = "openrouter";
       else if (val.startsWith("AIza")) saveTarget = "gemini";
@@ -2933,13 +3168,9 @@ ${tpl.gen.trim()}
       card.querySelector(".status-text").textContent = t("statusSaved");
       card.querySelector(".status-text").style.color = "var(--green)";
       if (item.thoughtText) {
-        const tb = card.querySelector(".thought-box");
-        tb.classList.remove("hidden");
-        tb.open = false;
-        tb.querySelector("summary").textContent = t("thinkingDone");
-        renderMarkdown(tb.querySelector(".thought-content"), item.thoughtText);
+        setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
       }
-      renderMarkdown(card.querySelector(".answer-body"), item.answerText);
+      renderMarkdownAsync(card.querySelector(".answer-body"), item.answerText);
       if (item.usage) {
         const tokEl = card.querySelector(".msg-tokens");
         tokEl.textContent = formatUsageLine(item.usage);
@@ -3202,7 +3433,6 @@ ${tpl.gen.trim()}
       const providerTitle = currentProviderTitle();
       const useSearch = getActiveTier() === "paid" && $("searchToggle").checked;
 
-      // Start a brand-new Free Chat session if no active session exists yet
       if (!state.hasActiveSession || !state.initialUserParts) {
         state.initialUserParts = [{ text: q }];
         state.chatHistory = [];
@@ -3232,7 +3462,6 @@ ${tpl.gen.trim()}
         return;
       }
 
-      // Continue existing session (either problem or free_chat)
       addUserCard(liveBox, t("userFollowup"), q);
       const card = createModelCard(liveBox, providerTitle, modelLabel);
 
