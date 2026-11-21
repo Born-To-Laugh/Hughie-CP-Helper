@@ -110,14 +110,15 @@
 
     /* Header */
     header {
-      height: 50px;
-      padding: 0 18px;
+      min-height: 50px;
+      padding: 6px 18px;
       border-bottom: 1px solid var(--border);
       background: var(--bg-base);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
       flex-shrink: 0;
     }
 
@@ -154,6 +155,12 @@
       flex-wrap: wrap;
     }
 
+    .model-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     select, button, input, textarea {
       font-family: inherit;
       color: var(--text);
@@ -164,7 +171,7 @@
     }
     select, button {
       height: 32px;
-      padding: 0 11px;
+      padding: 0 10px;
       font-size: 13px;
       cursor: pointer;
     }
@@ -172,6 +179,17 @@
     select:focus, input:focus, textarea:focus {
       outline: none;
       border-color: var(--accent);
+    }
+
+    #modelSelect {
+      max-width: 250px;
+    }
+    #customOrModelInput {
+      height: 32px;
+      width: 190px;
+      padding: 0 9px;
+      font-size: 12.5px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     .btn-primary {
@@ -385,11 +403,42 @@
     .telemetry-group {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
     }
     .token-stat b { color: var(--text-strong); font-weight: 600; }
     .token-stat .dim { color: var(--muted); }
+
+    .rpd-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text-soft);
+      font-size: 11.5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .rpd-pill:hover { border-color: var(--border-active); }
+    .rpd-pill.ok b { color: var(--green); }
+    .rpd-pill.warn { border-color: var(--banner-border); background: var(--banner-bg); }
+    .rpd-pill.warn b { color: var(--amber); }
+    .rpd-pill.full { border-color: var(--error-border); background: var(--error-bg); }
+    .rpd-pill.full b { color: var(--red); }
+
+    .rpd-switch-btn {
+      height: 24px;
+      padding: 0 8px;
+      font-size: 11.5px;
+      border-radius: 4px;
+      background: var(--accent-tint);
+      border: 1px solid var(--border-active);
+      color: var(--accent);
+      font-family: inherit;
+    }
 
     .history-banner {
       padding: 8px 24px;
@@ -421,7 +470,7 @@
 
     .empty-state {
       margin: auto;
-      max-width: 500px;
+      max-width: 520px;
       padding: 24px;
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -672,6 +721,9 @@
       border-radius: 5px;
       background: var(--error-bg);
       font-size: 13.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
     /* Dialog */
@@ -681,7 +733,7 @@
       border: 1px solid var(--border-active);
       border-radius: 7px;
       padding: 20px 22px;
-      width: 480px;
+      width: 500px;
       max-width: 94vw;
     }
     dialog.wide { width: 840px; }
@@ -707,10 +759,16 @@
     <div class="header-controls">
       <button class="btn-live-return hidden" id="btnHeaderReturnLive"></button>
 
-      <select id="modelSelect" title="Model">
-        <option value="4-hydrogen" selected>4 Hydrogen</option>
-        <option value="3.8-flash">3.8 Flash</option>
+      <select id="providerSelect" title="AI Provider">
+        <option value="gemini" selected>Gemini (AI Studio)</option>
+        <option value="openrouter">OpenRouter</option>
       </select>
+
+      <div class="model-group">
+        <select id="modelSelect" title="Model"></select>
+        <input type="text" id="customOrModelInput" class="hidden" placeholder="author/model:free" />
+        <button class="btn-ghost hidden" id="btnRefreshOrModels" title="Refresh OpenRouter free CP models" style="padding:0 8px;">↻</button>
+      </div>
 
       <select id="thinkingSelect" title="Thinking Level">
         <option value="LOW">Thinking: Low</option>
@@ -739,6 +797,8 @@
         <div class="telemetry-group">
           <span class="token-stat" id="ctxCounter"></span>
           <span class="token-stat" id="sessionTokenCounter"></span>
+          <span class="rpd-pill ok" id="rpdCounter" title=""></span>
+          <button class="rpd-switch-btn hidden" id="btnQuickSwitchOR"></button>
         </div>
         <span id="shortcutHint" style="color:var(--muted);"></span>
       </div>
@@ -864,21 +924,30 @@
 
   <!-- API Key Dialog -->
   <dialog id="apiDialog">
-    <h3 style="margin:0 0 8px; font-size:15.5px;" data-i18n="apiModalTitle">Gemini API Key</h3>
+    <h3 style="margin:0 0 8px; font-size:15.5px;" data-i18n="apiModalTitle">API Key Settings</h3>
     <p style="font-size:13px; color:var(--text-soft); line-height:1.55; margin:0 0 12px;" data-i18n="apiModalDesc"></p>
 
-    <div class="section-label"><span data-i18n="lblApiKey">API Key</span></div>
+    <div class="section-label"><span data-i18n="lblApiProvider">Provider</span></div>
+    <div class="segmented cols-2" style="margin-bottom:12px;">
+      <button type="button" class="seg-btn active" data-modal-provider="gemini">Gemini (AI Studio)</button>
+      <button type="button" class="seg-btn" data-modal-provider="openrouter">OpenRouter</button>
+    </div>
+
+    <div class="section-label">
+      <span id="modalApiKeyLabel">API Key</span>
+      <span id="modalKeyStatusHint" style="font-size:11px; text-transform:none; letter-spacing:0;"></span>
+    </div>
     <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <input type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off" />
+      <input type="password" id="apiKeyInput" placeholder="AIzaSy... / sk-or-v1-..." autocomplete="off" />
       <button type="button" id="btnToggleKey" style="height:36px; white-space:nowrap;"></button>
     </div>
 
     <div class="section-label"><span data-i18n="lblApiTier">API Plan</span></div>
     <div class="segmented cols-2" style="margin-bottom:6px;">
-      <button type="button" class="seg-btn active" data-tier="free" data-i18n="tierFree">Free Tier</button>
-      <button type="button" class="seg-btn" data-tier="paid" data-i18n="tierPaid">Paid Tier (Billing)</button>
+      <button type="button" class="seg-btn active" data-tier="free" id="btnTierFree">Free Tier</button>
+      <button type="button" class="seg-btn" data-tier="paid" id="btnTierPaid">Paid Tier</button>
     </div>
-    <div class="notice-line" data-i18n="tierNote"></div>
+    <div class="notice-line" id="modalTierNote"></div>
 
     <div class="dialog-actions">
       <button type="button" class="btn-danger" id="btnClearApi" data-i18n="btnClearKey">Remove</button>
@@ -983,7 +1052,7 @@ private:
         int mid = (l + r) >> 1;
         if(pos <= mid) DStree[id].l = Point_Update(DStree[id].l, l, mid, pos, v);
         else DStree[id].r = Point_Update(DStree[id].r, mid + 1, r, pos, v);
-        DStree[id].val = DStree[id].l[DStree].val + DStree[id].r[DStree].val;
+        DStree[id].val = DStree[DStree[id].l].val + DStree[DStree[id].r].val;
         return id;
     }
 public:
@@ -1085,16 +1154,39 @@ ope3:
 Query cand by query tin-tout, then check
 */`;
 
-    const MODEL_PROFILES = {
-      "4-hydrogen": { modelId: "gemini-4-hydrogen", supportsXhigh: true, label: "4 Hydrogen" },
-      "3.8-flash": { modelId: "gemini-3.8-flash", supportsXhigh: false, label: "3.8 Flash" },
+    // =========================================================================
+    // 2. MODEL CATALOGS & CONSTANTS
+    // =========================================================================
+    const GEMINI_MODELS = {
+      "4-hydrogen": { modelId: "gemini-4-hydrogen", supportsXhigh: true, label: "4 Hydrogen", contextLength: 1048576 },
+      "3.8-flash": { modelId: "gemini-3.8-flash", supportsXhigh: false, label: "3.8 Flash", contextLength: 1048576 },
     };
 
-    const MAX_CONTEXT_TOKENS = 1048576;
+    // Fallback curated free CP models on OpenRouter (live-updated via /api/v1/models)
+    const FALLBACK_OR_FREE_MODELS = [
+      { id: "nvidia/nemotron-3-ultra:free", name: "Nemotron 3 Ultra (free)", contextLength: 1048576, supportsReasoning: true, score: 95 },
+      { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (free)", contextLength: 1048576, supportsReasoning: true, score: 92 },
+      { id: "particle-ai/particle-1:free", name: "Particle-1 [DeepSeek V4.1 Flash] (free)", contextLength: 1048576, supportsReasoning: true, score: 94 },
+      { id: "inclusionai/ling-3.2-flash:free", name: "Ling 3.2 Flash (free)", contextLength: 1048576, supportsReasoning: true, score: 88 },
+      { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (free)", contextLength: 262144, supportsReasoning: true, score: 85 },
+      { id: "baidu/ernie-5.5-flash-preview:free", name: "ERNIE 5.5 Flash Preview (free)", contextLength: 1048576, supportsReasoning: true, score: 82 },
+      { id: "openrouter/free", name: "OpenRouter Free Auto-Router", contextLength: 200000, supportsReasoning: true, score: 75 },
+    ];
+
+    const OR_MODELS_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+    const DEFAULT_GEMINI_FREE_RPD = 20;
+    const DEFAULT_OR_FREE_RPD = 50;
 
     const LS_KEYS = {
+      provider: "hughie_cp_provider",
       apiKey: "hughie_cp_api_key",
       apiTier: "hughie_cp_api_tier",
+      orApiKey: "hughie_cp_or_api_key",
+      orTier: "hughie_cp_or_tier",
+      orModelsCache: "hughie_cp_or_models_cache",
+      orSelectedModel: "hughie_cp_or_selected_model",
+      orCustomModel: "hughie_cp_or_custom_model",
+      rpdData: "hughie_cp_rpd_tracker",
       lang: "hughie_cp_lang",
       solTpl: "hughie_cp_sol_tpl",
       genTpl: "hughie_cp_gen_tpl",
@@ -1104,14 +1196,16 @@ Query cand by query tin-tout, then check
     };
 
     // =========================================================================
-    // 2. I18N DICTIONARY (VI / EN)
+    // 3. I18N DICTIONARY (VI / EN)
     // =========================================================================
     const I18N = {
       vi: {
         btnTemplate: "Template",
         btnNew: "Bài mới",
-        apiReady: "API Key",
-        apiMissing: "API Key",
+        apiReadyGemini: "Gemini Key",
+        apiMissingGemini: "Gemini Key",
+        apiReadyOR: "OR Key",
+        apiMissingOR: "OR Key",
         lblInputFormat: "1. Định dạng đề",
         sessionActive: "Giữ mạch bài",
         sessionFreeChat: "Chat tự do",
@@ -1125,9 +1219,12 @@ Query cand by query tin-tout, then check
         phPdfExtra: "Ghi chú thêm cho PDF (vd: chỉ xét bài 2)...",
         lblOiCode: "Mã bài OI / Tên bài",
         phOiCode: "VD: IOI 2023 Closing Time, VOI 2024 Bai 3...",
-        oiFreeWarn: "Free Tier không hỗ trợ Google Search. Model chỉ giải được nếu đã biết sẵn đề bài này; khuyến nghị dùng Statement hoặc PDF.",
-        searchEnabledLabel: "Google Search Grounding",
-        searchDisabledLabel: "Google Search (chỉ ở Paid Tier)",
+        oiFreeWarnGemini: "Free Tier không hỗ trợ Google Search. Model chỉ giải được nếu đã biết sẵn đề bài này; khuyến nghị dùng Statement hoặc PDF.",
+        oiFreeWarnOR: "OpenRouter Free Tier ($0 credit) không hỗ trợ Web Search. Khuyến nghị dùng Statement hoặc PDF.",
+        searchEnabledGemini: "Google Search Grounding",
+        searchDisabledGemini: "Google Search (chỉ ở Paid Tier)",
+        searchEnabledOR: "Web Search Plugin (OpenRouter)",
+        searchDisabledOR: "Web Search (chỉ ở Paid Tier / có Credit)",
         lblMode: "2. Hạng mục",
         modeHintSolTitle: "Hint / Solution",
         modeHintSolDesc: "Gợi ý nối tiếp hoặc lời giải chi tiết",
@@ -1159,16 +1256,23 @@ Query cand by query tin-tout, then check
         btnSendChat: "Gửi",
         shortcutHint: "Enter: xuống dòng | Cmd+Enter / Ctrl+Enter: gửi",
         emptyTitle: "Hughie's CP Helper",
-        emptyDesc: "Chọn định dạng đề và hạng mục ở khung bên phải để giải bài, hoặc nhập trực tiếp vào khung chat bên dưới để hỏi về kiến thức bất kỳ.",
-        bannerNoKey: "Chưa có Gemini API Key. Hãy điền key để bắt đầu.",
+        emptyDesc: "Chọn định dạng đề và hạng mục ở khung bên phải để giải bài, hoặc nhập trực tiếp vào khung chat bên dưới để hỏi về kiến thức bất kỳ. Khi hết 20 RPD Gemini, chuyển Provider sang OpenRouter để dùng các model :free.",
+        bannerNoKeyGemini: "Chưa có Gemini API Key. Hãy điền key (hoặc chuyển sang OpenRouter) để bắt đầu.",
+        bannerNoKeyOR: "Chưa có OpenRouter API Key. Hãy điền key (sk-or-v1-...) để dùng các model :free.",
         btnFillNow: "Điền Key",
-        apiModalTitle: "Cài đặt Gemini API Key",
-        apiModalDesc: "Key được lưu cục bộ trong localStorage trên trình duyệt và gọi trực tiếp tới Gemini API.",
-        lblApiKey: "API Key",
-        lblApiTier: "Loại tài khoản API",
+        apiModalTitle: "Cài đặt API Key",
+        apiModalDesc: "Key được lưu cục bộ trong localStorage trên trình duyệt và gọi trực tiếp tới API chính thức (hỗ trợ lưu cả 2 key Gemini & OpenRouter).",
+        lblApiProvider: "Chọn nhà cung cấp",
+        lblApiKeyGemini: "Gemini API Key (AI Studio)",
+        lblApiKeyOR: "OpenRouter API Key",
+        keySavedBadge: "Đã lưu",
+        keyMissingBadge: "Chưa có",
+        lblApiTier: "Gói tài khoản",
         tierFree: "Free Tier",
-        tierPaid: "Paid Tier (Có Billing)",
-        tierNote: "Google Search Grounding bị vô hiệu hoá ở Free Tier để tránh lỗi vượt quota.",
+        tierPaidGemini: "Paid Tier (Billing)",
+        tierPaidOR: "Paid Tier (Có Credits)",
+        tierNoteGemini: "Gemini Free Tier giới hạn ~20 RPD (reset 0h00 giờ PT) và tắt Google Search Grounding.",
+        tierNoteOR: "OpenRouter Free (:free) giới hạn 20 RPM & 50 RPD (1.000 RPD nếu từng nạp ≥ $10). Có Credit mới bật được Web Search.",
         btnClearKey: "Xoá Key",
         btnClose: "Đóng",
         btnSave: "Lưu",
@@ -1196,6 +1300,7 @@ Query cand by query tin-tout, then check
         errNoOi: "Bạn chưa nhập mã bài OI.",
         errNoPdf: "Bạn chưa chọn file PDF.",
         errNoIdea: "Bạn chưa nhập ý tưởng hoặc công thức cần kiểm tra.",
+        errNoCustomModel: "Bạn chưa nhập Custom Model ID của OpenRouter.",
         pdfBadType: "Chỉ hỗ trợ file .pdf",
         pdfTooBig: "File vượt quá giới hạn 20MB.",
         pdfLoaded: "Đã nạp:",
@@ -1207,6 +1312,7 @@ Query cand by query tin-tout, then check
         thinkMed: "Thinking: Vừa (Medium)",
         thinkHigh: "Thinking: Cao (High)",
         thinkXHigh: "Thinking: Tối đa (Extra High)",
+        thinkNA: "Thinking: Mặc định",
         interruptNote: "[Người dùng đã dừng giữa quá trình suy nghĩ để chỉnh sửa hướng hiểu bài]",
         viewingHistoryPrefix: "Đang xem lịch sử:",
         btnRestoreHistory: "Nạp lại để chat tiếp",
@@ -1219,12 +1325,27 @@ Query cand by query tin-tout, then check
         tokThink: "Think",
         tokOut: "Out",
         tokTotal: "Total",
+        rpdLabel: "RPD",
+        rpdPaidTag: "Paid",
+        rpdTooltipGemini: "Gemini RPD (reset 0h00 giờ Pacific). Bấm để chỉnh lại số lượt nếu bạn đã dùng trên AI Studio.",
+        rpdTooltipOR: "OpenRouter :free RPD (reset 0h00 UTC). Bấm để đồng bộ trực tiếp từ OpenRouter / chỉnh tay.",
+        rpdPromptGemini: "Nhập số lượt RPD Gemini đã dùng hôm nay (reset 0h00 Pacific Time):",
+        rpdPromptOR: "Đã đồng bộ từ OpenRouter (hoặc nhập số RPD muốn đặt cho hôm nay):",
+        rpdSynced: "Đã đồng bộ RPD từ OpenRouter!",
+        quickSwitchOR: "Dùng OpenRouter (:free)",
+        orCustomOpt: "✎ Nhập Model ID khác...",
+        orRefreshing: "Đang tải danh sách :free...",
+        orRefreshBtnTip: "Cập nhật danh sách model :free mới nhất từ OpenRouter",
+        autoSwitchedModal: "Đã tự nhận diện key OpenRouter!",
+        autoSwitchedModalGemini: "Đã tự nhận diện key Gemini!",
       },
       en: {
         btnTemplate: "Templates",
         btnNew: "New Problem",
-        apiReady: "API Key",
-        apiMissing: "API Key",
+        apiReadyGemini: "Gemini Key",
+        apiMissingGemini: "Gemini Key",
+        apiReadyOR: "OR Key",
+        apiMissingOR: "OR Key",
         lblInputFormat: "1. Problem Format",
         sessionActive: "Session active",
         sessionFreeChat: "Free Chat",
@@ -1238,9 +1359,12 @@ Query cand by query tin-tout, then check
         phPdfExtra: "Optional PDF note (e.g. Problem 2 only)...",
         lblOiCode: "OI Problem Code / Title",
         phOiCode: "e.g. IOI 2023 Closing Time, VOI 2024 Task 3...",
-        oiFreeWarn: "Google Search is disabled on Free Tier. Model can only solve if it already knows this problem; Statement or PDF is recommended.",
-        searchEnabledLabel: "Google Search Grounding",
-        searchDisabledLabel: "Google Search (Paid Tier only)",
+        oiFreeWarnGemini: "Google Search is disabled on Free Tier. Model can only solve if it already knows this problem; Statement or PDF is recommended.",
+        oiFreeWarnOR: "OpenRouter Free Tier ($0 credits) does not support Web Search. Statement or PDF is recommended.",
+        searchEnabledGemini: "Google Search Grounding",
+        searchDisabledGemini: "Google Search (Paid Tier only)",
+        searchEnabledOR: "Web Search Plugin (OpenRouter)",
+        searchDisabledOR: "Web Search (Paid Tier / Credits only)",
         lblMode: "2. Category",
         modeHintSolTitle: "Hint / Solution",
         modeHintSolDesc: "Guided hints or complete editorial",
@@ -1272,16 +1396,23 @@ Query cand by query tin-tout, then check
         btnSendChat: "Send",
         shortcutHint: "Enter: newline | Cmd+Enter / Ctrl+Enter: send",
         emptyTitle: "Hughie's CP Helper",
-        emptyDesc: "Select an input format and category on the right to solve a problem, or type directly in the chat box below to ask about any topic.",
-        bannerNoKey: "Gemini API Key is missing. Add your key to start.",
+        emptyDesc: "Select an input format and category on the right to solve a problem, or chat directly below to ask about any topic. Switch Provider to OpenRouter anytime when Gemini's 20 RPD runs out.",
+        bannerNoKeyGemini: "Gemini API Key is missing. Add your key (or switch to OpenRouter) to start.",
+        bannerNoKeyOR: "OpenRouter API Key is missing. Add your key (sk-or-v1-...) to use :free models.",
         btnFillNow: "Set Key",
-        apiModalTitle: "Gemini API Key Settings",
-        apiModalDesc: "Stored locally in browser localStorage and sent directly to Gemini REST API.",
-        lblApiKey: "API Key",
+        apiModalTitle: "API Key Settings",
+        apiModalDesc: "Stored locally in browser localStorage and sent directly to the provider API (supports saving both Gemini & OpenRouter keys).",
+        lblApiProvider: "Provider",
+        lblApiKeyGemini: "Gemini API Key (AI Studio)",
+        lblApiKeyOR: "OpenRouter API Key",
+        keySavedBadge: "Saved",
+        keyMissingBadge: "Missing",
         lblApiTier: "API Plan",
         tierFree: "Free Tier",
-        tierPaid: "Paid Tier (Billing)",
-        tierNote: "Google Search Grounding is disabled on Free Tier to prevent quota errors.",
+        tierPaidGemini: "Paid Tier (Billing)",
+        tierPaidOR: "Paid Tier (Credits)",
+        tierNoteGemini: "Gemini Free Tier is capped at ~20 RPD (resets midnight PT) and disables Google Search Grounding.",
+        tierNoteOR: "OpenRouter :free models allow 20 RPM & 50 RPD (1,000 RPD after $10+ lifetime credits). Web Search requires credits.",
         btnClearKey: "Remove",
         btnClose: "Close",
         btnSave: "Save",
@@ -1309,6 +1440,7 @@ Query cand by query tin-tout, then check
         errNoOi: "Please enter an OI problem code.",
         errNoPdf: "Please select a PDF file.",
         errNoIdea: "Please enter your idea or formula to check.",
+        errNoCustomModel: "Please enter a custom OpenRouter model ID.",
         pdfBadType: "Only .pdf files are supported.",
         pdfTooBig: "File exceeds the 20MB inline PDF limit.",
         pdfLoaded: "Loaded:",
@@ -1320,6 +1452,7 @@ Query cand by query tin-tout, then check
         thinkMed: "Thinking: Medium",
         thinkHigh: "Thinking: High",
         thinkXHigh: "Thinking: Extra High",
+        thinkNA: "Thinking: Default",
         interruptNote: "[User stopped generation during thinking to prune/correct problem understanding]",
         viewingHistoryPrefix: "Viewing history:",
         btnRestoreHistory: "Load as Active Session",
@@ -1332,15 +1465,42 @@ Query cand by query tin-tout, then check
         tokThink: "Think",
         tokOut: "Out",
         tokTotal: "Total",
+        rpdLabel: "RPD",
+        rpdPaidTag: "Paid",
+        rpdTooltipGemini: "Gemini RPD (resets midnight Pacific Time). Click to adjust count if used on AI Studio.",
+        rpdTooltipOR: "OpenRouter :free RPD (resets midnight UTC). Click to sync from OpenRouter or adjust manually.",
+        rpdPromptGemini: "Enter Gemini RPD used today (resets midnight Pacific Time):",
+        rpdPromptOR: "Synced from OpenRouter (or enter RPD count to set for today):",
+        rpdSynced: "Synced RPD from OpenRouter!",
+        quickSwitchOR: "Switch to OpenRouter (:free)",
+        orCustomOpt: "✎ Custom Model ID...",
+        orRefreshing: "Loading :free models...",
+        orRefreshBtnTip: "Refresh live :free CP models from OpenRouter",
+        autoSwitchedModal: "Detected OpenRouter key!",
+        autoSwitchedModalGemini: "Detected Gemini key!",
       },
     };
 
     // =========================================================================
-    // 3. STATE & TELEMETRY
+    // 4. STATE & TELEMETRY
     // =========================================================================
+    function resolveInitialProvider() {
+      const saved = localStorage.getItem(LS_KEYS.provider);
+      if (saved === "gemini" || saved === "openrouter") return saved;
+      const hasGem = Boolean((localStorage.getItem(LS_KEYS.apiKey) || "").trim());
+      const hasOr = Boolean((localStorage.getItem(LS_KEYS.orApiKey) || "").trim());
+      if (!hasGem && hasOr) return "openrouter";
+      return "gemini";
+    }
+
     const state = {
+      provider: resolveInitialProvider(),
       lang: localStorage.getItem(LS_KEYS.lang) || "vi",
       apiTier: localStorage.getItem(LS_KEYS.apiTier) || "free",
+      orTier: localStorage.getItem(LS_KEYS.orTier) || "free",
+      orModels: [...FALLBACK_OR_FREE_MODELS],
+      orSelectedModel: localStorage.getItem(LS_KEYS.orSelectedModel) || FALLBACK_OR_FREE_MODELS[0].id,
+      orCustomModel: localStorage.getItem(LS_KEYS.orCustomModel) || "",
       inputType: "statement",
       mode: "hint_sol",
       hintOption: "hint",
@@ -1349,7 +1509,7 @@ Query cand by query tin-tout, then check
       pdfBase64: null,
       pdfName: null,
       hasActiveSession: false,
-      sessionType: "none", // "none" | "problem" | "free_chat"
+      sessionType: "none",
       isStreaming: false,
       abortController: null,
       initialUserParts: null,
@@ -1364,9 +1524,10 @@ Query cand by query tin-tout, then check
     const t = (key) => (I18N[state.lang] || I18N.vi)[key] || key;
     const fmtNum = (n) => Number(n || 0).toLocaleString("en-US");
 
-    function getApiKey() {
-      return (localStorage.getItem(LS_KEYS.apiKey) || "").trim();
-    }
+    function getGeminiKey() { return (localStorage.getItem(LS_KEYS.apiKey) || "").trim(); }
+    function getOrKey() { return (localStorage.getItem(LS_KEYS.orApiKey) || "").trim(); }
+    function getActiveKey() { return state.provider === "openrouter" ? getOrKey() : getGeminiKey(); }
+    function getActiveTier() { return state.provider === "openrouter" ? state.orTier : state.apiTier; }
 
     function getTemplates() {
       return {
@@ -1377,18 +1538,294 @@ Query cand by query tin-tout, then check
       };
     }
 
+    // =========================================================================
+    // 5. RPD TRACKING (Gemini: Midnight PT | OpenRouter: Midnight UTC)
+    // =========================================================================
+    function getGeminiDateKey() {
+      try {
+        return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date());
+      } catch {
+        return new Date().toISOString().slice(0, 10);
+      }
+    }
+
+    function getOrDateKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function loadRpdStore() {
+      let store = {};
+      try { store = JSON.parse(localStorage.getItem(LS_KEYS.rpdData) || "{}"); } catch {}
+      const gDate = getGeminiDateKey();
+      const oDate = getOrDateKey();
+      if (!store.gemini || store.gemini.date !== gDate) {
+        store.gemini = { date: gDate, used: 0, limit: DEFAULT_GEMINI_FREE_RPD };
+      }
+      if (!store.openrouter || store.openrouter.date !== oDate) {
+        store.openrouter = { date: oDate, used: 0, limit: store.openrouter?.limit || DEFAULT_OR_FREE_RPD };
+      }
+      return store;
+    }
+
+    function saveRpdStore(store) {
+      localStorage.setItem(LS_KEYS.rpdData, JSON.stringify(store));
+    }
+
+    function incrementRpd(provider) {
+      const store = loadRpdStore();
+      if (provider === "openrouter") {
+        store.openrouter.used = (store.openrouter.used || 0) + 1;
+      } else {
+        store.gemini.used = (store.gemini.used || 0) + 1;
+      }
+      saveRpdStore(store);
+      renderTelemetry();
+    }
+
+    async function syncOpenRouterKeyInfo(silent = true) {
+      const key = getOrKey();
+      if (!key) return null;
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/key", {
+          headers: { Authorization: `Bearer ${key}` },
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const data = json?.data;
+        if (!data) return null;
+
+        const store = loadRpdStore();
+        if (data.free_model_daily_requests && typeof data.free_model_daily_requests.used === "number") {
+          store.openrouter.used = data.free_model_daily_requests.used;
+          if (typeof data.free_model_daily_requests.limit === "number") {
+            store.openrouter.limit = data.free_model_daily_requests.limit;
+          }
+        } else if (data.is_free_tier === false) {
+          // Account has purchased credits; :free daily cap is 1000 if >=$10, keep existing or set 1000
+          if (store.openrouter.limit < 50) store.openrouter.limit = 50;
+        }
+        saveRpdStore(store);
+        renderTelemetry();
+        if (!silent) {
+          $("rpdCounter").title = t("rpdSynced");
+        }
+        return data;
+      } catch {
+        return null;
+      }
+    }
+
+    // =========================================================================
+    // 6. OPENROUTER FREE CP MODELS DISCOVERY & RANKING
+    // =========================================================================
+    function scoreOpenRouterFreeModel(m) {
+      const id = (m.id || "").toLowerCase();
+      const name = (m.name || "").toLowerCase();
+      const params = Array.isArray(m.supported_parameters) ? m.supported_parameters : [];
+      const supportsReasoning = params.includes("reasoning") || params.includes("reasoning_effort");
+      const ctx = Number(m.context_length || 0);
+
+      let score = 0;
+      if (id === "openrouter/free") return { score: 75, supportsReasoning: true };
+
+      if (supportsReasoning) score += 40;
+      if (/deepseek|particle|qwen|kimi|glm|nemotron-3|gemma-4|cohere.*code|ling-3|ernie-5/.test(id)) score += 25;
+      if (/coder|code|reasoning|thinking|math|ultra|pro|super|lightning|flash/.test(id + " " + name)) score += 15;
+      if (ctx >= 200000) score += 10;
+      else if (ctx >= 100000) score += 5;
+
+      // Penalize very small models for hard CP tasks
+      if (/\b(1b|1\.7b|2b|3b|4b|7b|8b|nano)\b/.test(id + " " + name)) score -= 22;
+
+      return { score, supportsReasoning };
+    }
+
+    function loadCachedOrModels() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(LS_KEYS.orModelsCache) || "null");
+        if (raw && Array.isArray(raw.models) && raw.models.length > 0) {
+          state.orModels = raw.models;
+          return Date.now() - (raw.ts || 0) < OR_MODELS_CACHE_TTL;
+        }
+      } catch {}
+      return false;
+    }
+
+    async function fetchOpenRouterFreeModels(force = false) {
+      if (!force && loadCachedOrModels()) {
+        if (state.provider === "openrouter") populateModelSelect();
+        return;
+      }
+      const btn = $("btnRefreshOrModels");
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch("https://openrouter.ai/api/v1/models");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const all = Array.isArray(json?.data) ? json.data : [];
+
+        const freeText = all
+          .filter((m) => {
+            const id = m.id || "";
+            const isZeroPrice =
+              id === "openrouter/free" ||
+              id.endsWith(":free") ||
+              (parseFloat(m.pricing?.prompt) === 0 && parseFloat(m.pricing?.completion) === 0);
+            if (!isZeroPrice) return false;
+            const outMods = m.architecture?.output_modalities;
+            if (Array.isArray(outMods) && !outMods.includes("text")) return false;
+            if (/guard|safety|shield|rerank|embed|whisper|tts|image|video|moderation|audio/i.test(id + " " + (m.name || ""))) {
+              return false;
+            }
+            return true;
+          })
+          .map((m) => {
+            const { score, supportsReasoning } = scoreOpenRouterFreeModel(m);
+            return {
+              id: m.id,
+              name: m.name || m.id,
+              contextLength: Number(m.context_length || 131072),
+              maxCompletionTokens: Number(m.top_provider?.max_completion_tokens || 0),
+              supportsReasoning,
+              created: Number(m.created || 0),
+              score,
+            };
+          })
+          .sort((a, b) => b.score - a.score || b.contextLength - a.contextLength || b.created - a.created);
+
+        if (freeText.length > 0) {
+          state.orModels = freeText;
+          localStorage.setItem(LS_KEYS.orModelsCache, JSON.stringify({ ts: Date.now(), models: freeText }));
+        }
+      } catch {
+        // Fallback to cached or built-in list silently
+      } finally {
+        if (btn) btn.disabled = false;
+        if (state.provider === "openrouter") {
+          populateModelSelect();
+          syncThinkingOptions();
+          renderTelemetry();
+        }
+      }
+    }
+
+    function formatCtxBadge(ctx) {
+      if (!ctx) return "";
+      if (ctx >= 1000000) return "1M";
+      return `${Math.round(ctx / 1024)}K`;
+    }
+
+    function getActiveModelInfo() {
+      if (state.provider === "gemini") {
+        const key = $("modelSelect").value;
+        const g = GEMINI_MODELS[key] || GEMINI_MODELS["4-hydrogen"];
+        return {
+          id: g.modelId,
+          label: g.label,
+          contextLength: g.contextLength,
+          supportsXhigh: g.supportsXhigh,
+          supportsReasoning: true,
+        };
+      }
+      const sel = $("modelSelect").value;
+      if (sel === "__custom__") {
+        const customId = $("customOrModelInput").value.trim() || "openrouter/free";
+        return {
+          id: customId,
+          label: customId,
+          contextLength: 200000,
+          supportsXhigh: true,
+          supportsReasoning: true,
+        };
+      }
+      const found = state.orModels.find((m) => m.id === sel) || state.orModels[0] || FALLBACK_OR_FREE_MODELS[0];
+      return {
+        id: found.id,
+        label: found.name.replace(/:free$/i, ""),
+        contextLength: found.contextLength || 131072,
+        maxCompletionTokens: found.maxCompletionTokens || 0,
+        supportsXhigh: true,
+        supportsReasoning: found.supportsReasoning,
+      };
+    }
+
+    function populateModelSelect() {
+      const sel = $("modelSelect");
+      const prevVal = sel.value;
+      sel.innerHTML = "";
+
+      if (state.provider === "gemini") {
+        Object.entries(GEMINI_MODELS).forEach(([k, v]) => {
+          const opt = document.createElement("option");
+          opt.value = k;
+          opt.textContent = v.label;
+          sel.appendChild(opt);
+        });
+        sel.value = GEMINI_MODELS[prevVal] ? prevVal : "4-hydrogen";
+        $("customOrModelInput").classList.add("hidden");
+        $("btnRefreshOrModels").classList.add("hidden");
+        return;
+      }
+
+      // OpenRouter mode
+      $("btnRefreshOrModels").classList.remove("hidden");
+      $("btnRefreshOrModels").title = t("orRefreshBtnTip");
+
+      state.orModels.forEach((m, idx) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        const star = idx < 6 && m.score >= 70 ? "★ " : "";
+        const badges = [];
+        if (m.supportsReasoning) badges.push("Think");
+        const ctxStr = formatCtxBadge(m.contextLength);
+        if (ctxStr) badges.push(ctxStr);
+        const cleanName = m.name.replace(/\s*\(free\)\s*$/i, "");
+        opt.textContent = `${star}${cleanName}${badges.length ? ` [${badges.join(" · ")}]` : ""} (free)`;
+        sel.appendChild(opt);
+      });
+
+      const customOpt = document.createElement("option");
+      customOpt.value = "__custom__";
+      customOpt.textContent = t("orCustomOpt");
+      sel.appendChild(customOpt);
+
+      const target = state.orSelectedModel;
+      if (target === "__custom__") {
+        sel.value = "__custom__";
+      } else if (state.orModels.some((m) => m.id === target)) {
+        sel.value = target;
+      } else {
+        sel.value = state.orModels[0]?.id || "__custom__";
+      }
+
+      const isCustom = sel.value === "__custom__";
+      $("customOrModelInput").classList.toggle("hidden", !isCustom);
+      if (isCustom) $("customOrModelInput").value = state.orCustomModel;
+    }
+
     function syncThinkingOptions() {
-      const profile = MODEL_PROFILES[$("modelSelect").value] || MODEL_PROFILES["4-hydrogen"];
-      const xhighOpt = $("thinkingSelect").querySelector('option[value="XHIGH"]');
-      xhighOpt.disabled = !profile.supportsXhigh;
-      if (!profile.supportsXhigh && $("thinkingSelect").value === "XHIGH") {
-        $("thinkingSelect").value = "HIGH";
+      const info = getActiveModelInfo();
+      const thinkingSel = $("thinkingSelect");
+      const xhighOpt = thinkingSel.querySelector('option[value="XHIGH"]');
+
+      if (state.provider === "openrouter" && info.supportsReasoning === false) {
+        thinkingSel.disabled = true;
+        xhighOpt.disabled = false;
+      } else {
+        thinkingSel.disabled = false;
+        xhighOpt.disabled = !info.supportsXhigh;
+        if (!info.supportsXhigh && thinkingSel.value === "XHIGH") {
+          thinkingSel.value = "HIGH";
+        }
       }
     }
 
     function renderTelemetry() {
+      const modelInfo = getActiveModelInfo();
+      const maxCtx = modelInfo.contextLength || 1048576;
+
       $("ctxCounter").innerHTML =
-        `<span class="dim">${t("ctxLabel")}</span> <b>${fmtNum(state.lastContextTokens)}</b> <span class="dim">/ ${fmtNum(MAX_CONTEXT_TOKENS)}</span>`;
+        `<span class="dim">${t("ctxLabel")}</span> <b>${fmtNum(state.lastContextTokens)}</b> <span class="dim">/ ${fmtNum(maxCtx)}</span>`;
 
       const s = state.sessionTotals;
       $("sessionTokenCounter").innerHTML =
@@ -1397,6 +1834,45 @@ Query cand by query tin-tout, then check
         `${t("tokThink")} <b>${fmtNum(s.thoughts)}</b> | ` +
         `${t("tokOut")} <b>${fmtNum(s.output)}</b> | ` +
         `${t("tokTotal")} <b>${fmtNum(s.total)}</b>`;
+
+      // RPD display
+      const rpdStore = loadRpdStore();
+      const rpdEl = $("rpdCounter");
+      const quickBtn = $("btnQuickSwitchOR");
+      rpdEl.classList.remove("ok", "warn", "full");
+
+      if (state.provider === "gemini") {
+        const used = rpdStore.gemini.used || 0;
+        const limit = rpdStore.gemini.limit || DEFAULT_GEMINI_FREE_RPD;
+        rpdEl.title = t("rpdTooltipGemini");
+
+        if (state.apiTier === "paid") {
+          rpdEl.classList.add("ok");
+          rpdEl.innerHTML = `${t("rpdLabel")}: <b>${fmtNum(used)}</b> (${t("rpdPaidTag")})`;
+          quickBtn.classList.add("hidden");
+        } else {
+          const ratio = used / limit;
+          rpdEl.classList.add(ratio >= 1 ? "full" : ratio >= 0.75 ? "warn" : "ok");
+          rpdEl.innerHTML = `${t("rpdLabel")}: <b>${used} / ${limit}</b>`;
+          quickBtn.textContent = t("quickSwitchOR");
+          quickBtn.classList.toggle("hidden", used < limit);
+        }
+      } else {
+        const used = rpdStore.openrouter.used || 0;
+        const limit = rpdStore.openrouter.limit || DEFAULT_OR_FREE_RPD;
+        const isFreeModel = modelInfo.id === "openrouter/free" || modelInfo.id.endsWith(":free");
+        rpdEl.title = t("rpdTooltipOR");
+        quickBtn.classList.add("hidden");
+
+        if (!isFreeModel && state.orTier === "paid") {
+          rpdEl.classList.add("ok");
+          rpdEl.innerHTML = `OR ${t("rpdLabel")}: <b>${fmtNum(used)}</b> (${t("rpdPaidTag")})`;
+        } else {
+          const ratio = used / limit;
+          rpdEl.classList.add(ratio >= 1 ? "full" : ratio >= 0.75 ? "warn" : "ok");
+          rpdEl.innerHTML = `OR ${t("rpdLabel")}: <b>${used} / ${limit}</b>`;
+        }
+      }
 
       $("shortcutHint").textContent = t("shortcutHint");
     }
@@ -1413,6 +1889,7 @@ Query cand by query tin-tout, then check
     function applyLanguage() {
       document.documentElement.lang = state.lang;
       $("langSelect").value = state.lang;
+      $("providerSelect").value = state.provider;
 
       document.querySelectorAll("[data-i18n]").forEach((el) => {
         const key = el.getAttribute("data-i18n");
@@ -1422,7 +1899,6 @@ Query cand by query tin-tout, then check
       $("statementText").placeholder = t("phStatement");
       $("pdfExtraText").placeholder = t("phPdfExtra");
       $("oiCodeInput").placeholder = t("phOiCode");
-      $("oiFreeNotice").textContent = state.apiTier === "free" ? t("oiFreeWarn") : "";
 
       const opts = $("thinkingSelect").options;
       opts[0].textContent = t("thinkLow");
@@ -1430,6 +1906,8 @@ Query cand by query tin-tout, then check
       opts[2].textContent = t("thinkHigh");
       opts[3].textContent = t("thinkXHigh");
 
+      populateModelSelect();
+      syncThinkingOptions();
       updateModeDynamicText();
       updateViewModeUI();
       updateSearchToggleUI();
@@ -1504,31 +1982,43 @@ Query cand by query tin-tout, then check
     }
 
     function updateSearchToggleUI() {
-      const isPaid = state.apiTier === "paid";
+      const isPaid = getActiveTier() === "paid";
       const cb = $("searchToggle");
       cb.disabled = !isPaid;
       $("searchToggleRow").classList.toggle("disabled", !isPaid);
-      $("searchToggleLabel").textContent = isPaid ? t("searchEnabledLabel") : t("searchDisabledLabel");
+
+      if (state.provider === "openrouter") {
+        $("searchToggleLabel").textContent = isPaid ? t("searchEnabledOR") : t("searchDisabledOR");
+        $("oiFreeNotice").textContent = !isPaid ? t("oiFreeWarnOR") : "";
+      } else {
+        $("searchToggleLabel").textContent = isPaid ? t("searchEnabledGemini") : t("searchDisabledGemini");
+        $("oiFreeNotice").textContent = !isPaid ? t("oiFreeWarnGemini") : "";
+      }
+
       if (!isPaid) cb.checked = false;
       else cb.checked = state.inputType === "oi_code";
-      $("oiFreeNotice").textContent = !isPaid ? t("oiFreeWarn") : "";
     }
 
     function refreshApiStatus() {
-      const hasKey = Boolean(getApiKey());
+      const hasKey = Boolean(getActiveKey());
       $("apiDot").classList.toggle("ok", hasKey);
-      $("apiBtnText").textContent = hasKey ? t("apiReady") : t("apiMissing");
+      if (state.provider === "openrouter") {
+        $("apiBtnText").textContent = hasKey ? t("apiReadyOR") : t("apiMissingOR");
+      } else {
+        $("apiBtnText").textContent = hasKey ? t("apiReadyGemini") : t("apiMissingGemini");
+      }
       if (!state.hasActiveSession && !$("liveOutputScroll").querySelector(".msg-card")) {
         renderEmptyState();
       }
     }
 
     function renderEmptyState() {
-      const hasKey = Boolean(getApiKey());
+      const hasKey = Boolean(getActiveKey());
+      const bannerText = state.provider === "openrouter" ? t("bannerNoKeyOR") : t("bannerNoKeyGemini");
       const banner = hasKey
         ? ""
         : `<div class="api-banner">
-             <span>${t("bannerNoKey")}</span>
+             <span>${bannerText}</span>
              <button class="btn-primary" onclick="openApiModal()" style="white-space:nowrap;">${t("btnFillNow")}</button>
            </div>`;
 
@@ -1541,7 +2031,7 @@ Query cand by query tin-tout, then check
     }
 
     // =========================================================================
-    // 4. SYSTEM INSTRUCTION & TASK PROMPTS
+    // 7. SYSTEM INSTRUCTION & TASK PROMPTS
     // =========================================================================
     function buildSystemInstruction() {
       const tpl = getTemplates();
@@ -1580,8 +2070,8 @@ ${tpl.gen.trim()}
       if (state.inputType === "oi_code") {
         const codeName = $("oiCodeInput").value.trim();
         const searchHint =
-          state.apiTier === "paid" && $("searchToggle").checked
-            ? "Use Google Search to retrieve the exact problem statement, constraints, and I/O format, then briefly confirm the problem summary first."
+          getActiveTier() === "paid" && $("searchToggle").checked
+            ? "Use web search to retrieve the exact problem statement, constraints, and I/O format, then briefly confirm the problem summary first."
             : "Identify this problem from your knowledge; if you are not 100% certain of exact constraints/statement, state that clearly before proceeding.";
         return `### Problem (OI Code): \`${codeName}\`\n${searchHint}`;
       }
@@ -1644,7 +2134,7 @@ ${tpl.gen.trim()}
     }
 
     // =========================================================================
-    // 5. MARKDOWN + KATEX + HIGHLIGHT.JS RENDERING
+    // 8. MARKDOWN + KATEX + HIGHLIGHT.JS RENDERING
     // =========================================================================
     function renderMarkdown(container, rawMarkdown, options = {}) {
       const { escapeRawTags = false } = options;
@@ -1721,7 +2211,7 @@ ${tpl.gen.trim()}
     }
 
     // =========================================================================
-    // 6. UI CARDS & HISTORY
+    // 9. UI CARDS & HISTORY
     // =========================================================================
     function addUserCard(targetContainer, badge, text) {
       const empty = targetContainer.querySelector("#emptyState");
@@ -1741,7 +2231,7 @@ ${tpl.gen.trim()}
       targetContainer.scrollTop = targetContainer.scrollHeight;
     }
 
-    function createModelCard(targetContainer, label) {
+    function createModelCard(targetContainer, providerTitle, label) {
       const empty = targetContainer.querySelector("#emptyState");
       if (empty) empty.remove();
 
@@ -1749,7 +2239,7 @@ ${tpl.gen.trim()}
       card.className = "msg-card";
       card.innerHTML = `
         <div class="msg-meta">
-          <span><strong>Gemini</strong> <span class="tag">${label}</span></span>
+          <span><strong>${providerTitle}</strong> <span class="tag">${label}</span></span>
           <span class="status-text" style="color:var(--accent);"></span>
         </div>
         <details class="thought-box hidden" open>
@@ -1764,12 +2254,13 @@ ${tpl.gen.trim()}
       return card;
     }
 
-    function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem") {
+    function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem", providerName = "Gemini") {
       const list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]");
       list.unshift({
         id: Date.now(),
         title: title.slice(0, 60),
         modelLabel,
+        providerName,
         userText,
         answerText,
         thoughtText: thoughtText || "",
@@ -1788,7 +2279,7 @@ ${tpl.gen.trim()}
       box.innerHTML = "";
 
       addUserCard(box, `${t("lblHistoryTag")} | ${item.modelLabel}`, item.userText);
-      const card = createModelCard(box, item.modelLabel);
+      const card = createModelCard(box, item.providerName || "AI", item.modelLabel);
       card.querySelector(".status-text").textContent = t("statusSaved");
       card.querySelector(".status-text").style.color = "var(--green)";
 
@@ -1832,34 +2323,102 @@ ${tpl.gen.trim()}
     }
 
     // =========================================================================
-    // 7. GEMINI STREAMING SSE CALL
+    // 10. UNIFIED STREAMING (GEMINI NATIVE & OPENROUTER)
     // =========================================================================
-    async function streamGemini(contents, useSearch, card, onComplete) {
-      const apiKey = getApiKey();
-      const modelKey = $("modelSelect").value;
-      const profile = MODEL_PROFILES[modelKey] || MODEL_PROFILES["4-hydrogen"];
-      let thinkingLevel = $("thinkingSelect").value;
-      if (!profile.supportsXhigh && thinkingLevel === "XHIGH") {
-        thinkingLevel = "HIGH";
+    function buildOpenRouterPayload(contents, useSearch, modelInfo, thinkingLevel) {
+      let hasPdf = false;
+      const messages = [{ role: "system", content: buildSystemInstruction() }];
+
+      for (const m of contents) {
+        const role = m.role === "model" ? "assistant" : "user";
+        const parts = m.parts || [];
+        const hasBinary = parts.some((p) => p.inlineData);
+
+        if (hasBinary) {
+          const contentArr = [];
+          for (const p of parts) {
+            if (p.inlineData) {
+              hasPdf = true;
+              contentArr.push({
+                type: "file",
+                file: {
+                  filename: state.pdfName || "problem.pdf",
+                  file_data: `data:${p.inlineData.mimeType || "application/pdf"};base64,${p.inlineData.data}`,
+                },
+              });
+            } else if (p.text) {
+              contentArr.push({ type: "text", text: p.text });
+            }
+          }
+          messages.push({ role, content: contentArr });
+        } else {
+          const combined = parts.map((p) => p.text || "").join("\n");
+          messages.push({ role, content: combined });
+        }
       }
 
       const body = {
-        systemInstruction: { parts: [{ text: buildSystemInstruction() }] },
-        contents,
-        generationConfig: {
-          maxOutputTokens: 65536,
-          thinkingConfig: {
-            thinkingLevel,
-            includeThoughts: true,
-          },
-        },
+        model: modelInfo.id,
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
       };
 
-      if (state.apiTier === "paid" && useSearch) {
-        body.tools = [{ google_search: {} }];
+      if (modelInfo.supportsReasoning) {
+        body.reasoning = { effort: thinkingLevel.toLowerCase() };
       }
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${profile.modelId}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+      const plugins = [];
+      if (hasPdf) {
+        plugins.push({ id: "file-parser", pdf: { engine: "cloudflare-ai" } });
+      }
+      if (state.orTier === "paid" && useSearch) {
+        plugins.push({ id: "web" });
+      }
+      if (plugins.length > 0) {
+        body.plugins = plugins;
+      }
+
+      return body;
+    }
+
+    async function streamAI(contents, useSearch, card, onComplete) {
+      const provider = state.provider;
+      const modelInfo = getActiveModelInfo();
+      let thinkingLevel = $("thinkingSelect").value;
+      if (!modelInfo.supportsXhigh && thinkingLevel === "XHIGH") {
+        thinkingLevel = "HIGH";
+      }
+
+      let endpoint = "";
+      let headers = { "Content-Type": "application/json" };
+      let body = null;
+
+      if (provider === "openrouter") {
+        const orKey = getOrKey();
+        endpoint = "https://openrouter.ai/api/v1/chat/completions";
+        headers.Authorization = `Bearer ${orKey}`;
+        headers["HTTP-Referer"] = location.origin === "null" ? "https://localhost" : location.origin;
+        headers["X-Title"] = "Hughie's CP Helper";
+        body = buildOpenRouterPayload(contents, useSearch, modelInfo, thinkingLevel);
+      } else {
+        const apiKey = getGeminiKey();
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelInfo.id}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+        body = {
+          systemInstruction: { parts: [{ text: buildSystemInstruction() }] },
+          contents,
+          generationConfig: {
+            maxOutputTokens: 65536,
+            thinkingConfig: {
+              thinkingLevel,
+              includeThoughts: true,
+            },
+          },
+        };
+        if (state.apiTier === "paid" && useSearch) {
+          body.tools = [{ google_search: {} }];
+        }
+      }
 
       state.abortController = new AbortController();
       state.isStreaming = true;
@@ -1878,15 +2437,16 @@ ${tpl.gen.trim()}
       let fullThought = "";
       let fullAnswer = "";
       let latestUsage = null;
+      let countedRpd = false;
       const collectedSources = [];
       const seenUrls = new Set();
 
       try {
-        statusEl.textContent = `${t("statusRunning")} (${profile.modelId} / ${thinkingLevel})`;
+        statusEl.textContent = `${t("statusRunning")} (${modelInfo.id}${modelInfo.supportsReasoning ? " / " + thinkingLevel : ""})`;
 
         const res = await fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(body),
           signal: state.abortController.signal,
         });
@@ -1897,8 +2457,14 @@ ${tpl.gen.trim()}
             const errJson = await res.json();
             errMsg = errJson?.error?.message || errMsg;
           } catch {}
-          throw new Error(errMsg);
+          const err = new Error(errMsg);
+          err.httpStatus = res.status;
+          throw err;
         }
+
+        // Request accepted by API -> count RPD
+        countedRpd = true;
+        incrementRpd(provider);
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -1923,32 +2489,88 @@ ${tpl.gen.trim()}
             let payload;
             try { payload = JSON.parse(jsonStr); } catch { continue; }
 
-            if (payload?.usageMetadata) {
-              latestUsage = payload.usageMetadata;
-              tokensEl.textContent = formatUsageLine(latestUsage);
-              tokensEl.classList.remove("hidden");
+            if (payload?.error) {
+              throw new Error(payload.error.message || JSON.stringify(payload.error));
             }
 
-            const cand = payload?.candidates?.[0];
-            if (!cand) continue;
+            if (provider === "openrouter") {
+              if (payload.usage) {
+                const inp = payload.usage.prompt_tokens || 0;
+                const out = payload.usage.completion_tokens || 0;
+                const thk = payload.usage.completion_tokens_details?.reasoning_tokens || 0;
+                const tot = payload.usage.total_tokens || (inp + out);
+                latestUsage = {
+                  promptTokenCount: inp,
+                  thoughtsTokenCount: thk,
+                  candidatesTokenCount: out,
+                  totalTokenCount: tot,
+                };
+                tokensEl.textContent = formatUsageLine(latestUsage);
+                tokensEl.classList.remove("hidden");
+              }
 
-            const parts = cand?.content?.parts || [];
-            for (const part of parts) {
-              if (!part.text) continue;
-              if (part.thought) {
-                fullThought += part.text;
+              const choice = payload?.choices?.[0];
+              if (!choice) continue;
+
+              const delta = choice.delta || {};
+              let thoughtChunk = "";
+              if (typeof delta.reasoning === "string" && delta.reasoning) {
+                thoughtChunk = delta.reasoning;
+              } else if (typeof delta.reasoning_content === "string" && delta.reasoning_content) {
+                thoughtChunk = delta.reasoning_content;
+              } else if (Array.isArray(delta.reasoning_details)) {
+                for (const rd of delta.reasoning_details) {
+                  if (rd?.type === "reasoning.text" && rd.text) thoughtChunk += rd.text;
+                  else if (rd?.type === "reasoning.summary" && rd.summary) thoughtChunk += rd.summary;
+                }
+              }
+
+              if (thoughtChunk) {
+                fullThought += thoughtChunk;
                 thoughtBox.classList.remove("hidden");
                 thoughtBox.open = true;
-              } else {
-                fullAnswer += part.text;
               }
-            }
 
-            const chunks = cand?.groundingMetadata?.groundingChunks || [];
-            for (const gc of chunks) {
-              if (gc.web?.uri && !seenUrls.has(gc.web.uri)) {
-                seenUrls.add(gc.web.uri);
-                collectedSources.push({ title: gc.web.title || gc.web.uri, uri: gc.web.uri });
+              if (typeof delta.content === "string" && delta.content) {
+                fullAnswer += delta.content;
+              }
+
+              const annotations = delta.annotations || choice.message?.annotations || [];
+              for (const ann of annotations) {
+                const uc = ann?.url_citation;
+                if (uc?.url && !seenUrls.has(uc.url)) {
+                  seenUrls.add(uc.url);
+                  collectedSources.push({ title: uc.title || uc.url, uri: uc.url });
+                }
+              }
+            } else {
+              if (payload?.usageMetadata) {
+                latestUsage = payload.usageMetadata;
+                tokensEl.textContent = formatUsageLine(latestUsage);
+                tokensEl.classList.remove("hidden");
+              }
+
+              const cand = payload?.candidates?.[0];
+              if (!cand) continue;
+
+              const parts = cand?.content?.parts || [];
+              for (const part of parts) {
+                if (!part.text) continue;
+                if (part.thought) {
+                  fullThought += part.text;
+                  thoughtBox.classList.remove("hidden");
+                  thoughtBox.open = true;
+                } else {
+                  fullAnswer += part.text;
+                }
+              }
+
+              const chunks = cand?.groundingMetadata?.groundingChunks || [];
+              for (const gc of chunks) {
+                if (gc.web?.uri && !seenUrls.has(gc.web.uri)) {
+                  seenUrls.add(gc.web.uri);
+                  collectedSources.push({ title: gc.web.title || gc.web.uri, uri: gc.web.uri });
+                }
               }
             }
 
@@ -2007,6 +2629,10 @@ ${tpl.gen.trim()}
           renderTelemetry();
         }
 
+        if (provider === "openrouter") {
+          syncOpenRouterKeyInfo(true);
+        }
+
         statusEl.textContent = t("statusDone");
         statusEl.style.color = "var(--green)";
         if (state.viewingHistoryId === null) {
@@ -2033,7 +2659,34 @@ ${tpl.gen.trim()}
           if (fullThought) renderMarkdown(thoughtContent, fullThought);
           statusEl.textContent = t("statusError");
           statusEl.style.color = "var(--red)";
-          answerEl.innerHTML = `<div class="error-box"><strong>${t("statusError")}:</strong> ${err.message}</div>`;
+
+          // If Gemini hit 429 rate limit, mark RPD full & offer 1-click OpenRouter switch
+          const isRateLimit = err.httpStatus === 429 || /quota|rate.?limit|429|exhausted/i.test(err.message || "");
+          if (provider === "gemini" && isRateLimit && !countedRpd) {
+            const store = loadRpdStore();
+            if (store.gemini.used < store.gemini.limit) {
+              store.gemini.used = store.gemini.limit;
+              saveRpdStore(store);
+              renderTelemetry();
+            }
+          }
+
+          const box = document.createElement("div");
+          box.className = "error-box";
+          box.innerHTML = `<div><strong>${t("statusError")}:</strong> <span></span></div>`;
+          box.querySelector("span").textContent = err.message;
+
+          if (provider === "gemini" && isRateLimit) {
+            const switchBtn = document.createElement("button");
+            switchBtn.className = "rpd-switch-btn";
+            switchBtn.style.alignSelf = "flex-start";
+            switchBtn.textContent = t("quickSwitchOR");
+            switchBtn.addEventListener("click", () => switchProvider("openrouter"));
+            box.appendChild(switchBtn);
+          }
+
+          answerEl.innerHTML = "";
+          answerEl.appendChild(box);
           onComplete("", fullThought, latestUsage, true);
         }
       } finally {
@@ -2046,19 +2699,125 @@ ${tpl.gen.trim()}
     }
 
     // =========================================================================
-    // 8. ACTIONS, MODES & SHORTCUTS
+    // 11. PROVIDER SWITCHING, MODALS & ACTIONS
     // =========================================================================
-    function openApiModal() {
-      $("apiKeyInput").value = getApiKey();
+    function switchProvider(nextProvider) {
+      if (state.isStreaming) return;
+      state.provider = nextProvider;
+      localStorage.setItem(LS_KEYS.provider, nextProvider);
+      $("providerSelect").value = nextProvider;
+      populateModelSelect();
+      syncThinkingOptions();
+      updateSearchToggleUI();
+      refreshApiStatus();
+      renderTelemetry();
+      if (nextProvider === "openrouter") {
+        fetchOpenRouterFreeModels(false);
+        syncOpenRouterKeyInfo(true);
+      }
+    }
+
+    $("providerSelect").addEventListener("change", () => {
+      switchProvider($("providerSelect").value);
+    });
+
+    $("btnQuickSwitchOR").addEventListener("click", () => {
+      switchProvider("openrouter");
+      if (!getOrKey()) openApiModal("openrouter");
+    });
+
+    $("btnRefreshOrModels").addEventListener("click", () => {
+      fetchOpenRouterFreeModels(true);
+    });
+
+    $("modelSelect").addEventListener("change", () => {
+      if (state.provider === "openrouter") {
+        const val = $("modelSelect").value;
+        state.orSelectedModel = val;
+        localStorage.setItem(LS_KEYS.orSelectedModel, val);
+        $("customOrModelInput").classList.toggle("hidden", val !== "__custom__");
+        if (val === "__custom__") {
+          $("customOrModelInput").value = state.orCustomModel;
+          $("customOrModelInput").focus();
+        }
+      }
+      syncThinkingOptions();
+      renderTelemetry();
+    });
+
+    $("customOrModelInput").addEventListener("input", () => {
+      state.orCustomModel = $("customOrModelInput").value.trim();
+      localStorage.setItem(LS_KEYS.orCustomModel, state.orCustomModel);
+      renderTelemetry();
+    });
+
+    // RPD click to adjust / sync
+    $("rpdCounter").addEventListener("click", async () => {
+      const store = loadRpdStore();
+      if (state.provider === "openrouter") {
+        await syncOpenRouterKeyInfo(false);
+        const updated = loadRpdStore();
+        const raw = prompt(t("rpdPromptOR"), String(updated.openrouter.used || 0));
+        if (raw === null) return;
+        const n = parseInt(raw, 10);
+        if (!Number.isNaN(n) && n >= 0) {
+          updated.openrouter.used = n;
+          saveRpdStore(updated);
+          renderTelemetry();
+        }
+      } else {
+        const raw = prompt(t("rpdPromptGemini"), String(store.gemini.used || 0));
+        if (raw === null) return;
+        const n = parseInt(raw, 10);
+        if (!Number.isNaN(n) && n >= 0) {
+          store.gemini.used = n;
+          saveRpdStore(store);
+          renderTelemetry();
+        }
+      }
+    });
+
+    // API Key Modal
+    let modalProvider = state.provider;
+    let pendingModalTier = getActiveTier();
+
+    function refreshApiModalFields() {
+      document.querySelectorAll("[data-modal-provider]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.modalProvider === modalProvider);
+      });
+
+      const isOr = modalProvider === "openrouter";
+      const savedKey = isOr ? getOrKey() : getGeminiKey();
+      $("apiKeyInput").value = savedKey;
+      $("apiKeyInput").placeholder = isOr ? "sk-or-v1-..." : "AIzaSy...";
+      $("modalApiKeyLabel").textContent = isOr ? t("lblApiKeyOR") : t("lblApiKeyGemini");
+      $("modalKeyStatusHint").textContent = savedKey ? `✓ ${t("keySavedBadge")}` : t("keyMissingBadge");
+      $("modalKeyStatusHint").style.color = savedKey ? "var(--green)" : "var(--muted)";
+
+      pendingModalTier = isOr ? state.orTier : state.apiTier;
+      $("btnTierPaid").textContent = isOr ? t("tierPaidOR") : t("tierPaidGemini");
+      $("modalTierNote").textContent = isOr ? t("tierNoteOR") : t("tierNoteGemini");
+      document.querySelectorAll("[data-tier]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tier === pendingModalTier);
+      });
+    }
+
+    function openApiModal(targetProvider) {
+      modalProvider = (targetProvider === "gemini" || targetProvider === "openrouter") ? targetProvider : state.provider;
       $("apiKeyInput").type = "password";
       $("btnToggleKey").textContent = t("show");
-      document.querySelectorAll("[data-tier]").forEach((b) => {
-        b.classList.toggle("active", b.dataset.tier === state.apiTier);
-      });
+      refreshApiModalFields();
       $("apiDialog").showModal();
     }
 
-    $("btnApiModal").addEventListener("click", openApiModal);
+    document.querySelectorAll("[data-modal-provider]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        modalProvider = btn.dataset.modalProvider;
+        refreshApiModalFields();
+      });
+    });
+
+    $("btnApiModal").addEventListener("click", () => openApiModal(state.provider));
     $("btnCloseApi").addEventListener("click", () => $("apiDialog").close());
     $("btnToggleKey").addEventListener("click", () => {
       const inp = $("apiKeyInput");
@@ -2067,10 +2826,9 @@ ${tpl.gen.trim()}
       $("btnToggleKey").textContent = show ? t("hide") : t("show");
     });
 
-    let pendingTier = state.apiTier;
     document.querySelectorAll("[data-tier]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        pendingTier = btn.dataset.tier;
+        pendingModalTier = btn.dataset.tier;
         document.querySelectorAll("[data-tier]").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
       });
@@ -2078,20 +2836,54 @@ ${tpl.gen.trim()}
 
     $("btnSaveApi").addEventListener("click", () => {
       const val = $("apiKeyInput").value.trim();
-      if (val) localStorage.setItem(LS_KEYS.apiKey, val);
-      else localStorage.removeItem(LS_KEYS.apiKey);
-      state.apiTier = pendingTier;
-      localStorage.setItem(LS_KEYS.apiTier, pendingTier);
+
+      // Auto-detect key type if user pasted into the opposite tab
+      let saveTarget = modalProvider;
+      if (val.startsWith("sk-or-")) saveTarget = "openrouter";
+      else if (val.startsWith("AIza")) saveTarget = "gemini";
+
+      if (saveTarget === "openrouter") {
+        if (val) localStorage.setItem(LS_KEYS.orApiKey, val);
+        else localStorage.removeItem(LS_KEYS.orApiKey);
+        state.orTier = pendingModalTier;
+        localStorage.setItem(LS_KEYS.orTier, pendingModalTier);
+        if (val && state.provider !== "openrouter" && !getGeminiKey()) {
+          state.provider = "openrouter";
+          localStorage.setItem(LS_KEYS.provider, "openrouter");
+        }
+      } else {
+        if (val) localStorage.setItem(LS_KEYS.apiKey, val);
+        else localStorage.removeItem(LS_KEYS.apiKey);
+        state.apiTier = pendingModalTier;
+        localStorage.setItem(LS_KEYS.apiTier, pendingModalTier);
+        if (val && state.provider !== "gemini" && !getOrKey()) {
+          state.provider = "gemini";
+          localStorage.setItem(LS_KEYS.provider, "gemini");
+        }
+      }
+
       $("apiDialog").close();
+      $("providerSelect").value = state.provider;
+      populateModelSelect();
+      syncThinkingOptions();
       refreshApiStatus();
       updateSearchToggleUI();
+      renderTelemetry();
+      if (state.provider === "openrouter" || saveTarget === "openrouter") {
+        syncOpenRouterKeyInfo(true);
+      }
     });
 
     $("btnClearApi").addEventListener("click", () => {
-      localStorage.removeItem(LS_KEYS.apiKey);
+      if (modalProvider === "openrouter") {
+        localStorage.removeItem(LS_KEYS.orApiKey);
+      } else {
+        localStorage.removeItem(LS_KEYS.apiKey);
+      }
       $("apiKeyInput").value = "";
       $("apiDialog").close();
       refreshApiStatus();
+      renderTelemetry();
     });
 
     $("btnTemplateModal").addEventListener("click", () => {
@@ -2117,8 +2909,6 @@ ${tpl.gen.trim()}
       $("tplRefInput").value = DEFAULT_STYLE_REFERENCE;
     });
 
-    $("modelSelect").addEventListener("change", syncThinkingOptions);
-
     $("langSelect").addEventListener("change", () => {
       state.lang = $("langSelect").value;
       localStorage.setItem(LS_KEYS.lang, state.lang);
@@ -2139,7 +2929,7 @@ ${tpl.gen.trim()}
 
       $("liveOutputScroll").innerHTML = "";
       addUserCard($("liveOutputScroll"), `${t("lblHistoryTag")} | ${item.modelLabel}`, item.userText);
-      const card = createModelCard($("liveOutputScroll"), item.modelLabel);
+      const card = createModelCard($("liveOutputScroll"), item.providerName || "AI", item.modelLabel);
       card.querySelector(".status-text").textContent = t("statusSaved");
       card.querySelector(".status-text").style.color = "var(--green)";
       if (item.thoughtText) {
@@ -2289,14 +3079,28 @@ ${tpl.gen.trim()}
     }
 
     function currentModelLabel() {
-      const m = MODEL_PROFILES[$("modelSelect").value]?.label || "4 Hydrogen";
+      const info = getActiveModelInfo();
       const lvl = $("thinkingSelect").value;
-      return `${m} (${lvl})`;
+      return info.supportsReasoning ? `${info.label} (${lvl})` : info.label;
+    }
+
+    function currentProviderTitle() {
+      return state.provider === "openrouter" ? "OpenRouter" : "Gemini";
+    }
+
+    function validateBeforeRun() {
+      if (!getActiveKey()) { openApiModal(state.provider); return false; }
+      if (state.provider === "openrouter" && $("modelSelect").value === "__custom__" && !$("customOrModelInput").value.trim()) {
+        alert(t("errNoCustomModel"));
+        $("customOrModelInput").focus();
+        return false;
+      }
+      return true;
     }
 
     async function handlePrimaryRun() {
       if (state.isStreaming) return;
-      if (!getApiKey()) { openApiModal(); return; }
+      if (!validateBeforeRun()) return;
       if (state.mode === "check_idea" && !$("ideaText").value.trim()) {
         alert(t("errNoIdea"));
         return;
@@ -2306,21 +3110,22 @@ ${tpl.gen.trim()}
         switchToLiveView();
       }
 
-      const useSearch = state.apiTier === "paid" && $("searchToggle").checked;
+      const useSearch = getActiveTier() === "paid" && $("searchToggle").checked;
       const modelLabel = currentModelLabel();
+      const providerTitle = currentProviderTitle();
       const badge = currentModeBadge();
       const liveBox = $("liveOutputScroll");
 
       if (state.sessionType === "problem" && state.initialUserParts) {
         const nextTaskPrompt = buildTaskInstruction();
         addUserCard(liveBox, badge, nextTaskPrompt);
-        const card = createModelCard(liveBox, modelLabel);
+        const card = createModelCard(liveBox, providerTitle, modelLabel);
 
         const contents = [{ role: "user", parts: state.initialUserParts }];
         state.chatHistory.forEach((m) => contents.push({ role: m.role, parts: [{ text: m.text }] }));
         contents.push({ role: "user", parts: [{ text: nextTaskPrompt }] });
 
-        await streamGemini(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+        await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
           state.chatHistory.push({ role: "user", text: nextTaskPrompt });
           if (answerText) {
             state.chatHistory.push({ role: "model", text: answerText });
@@ -2366,14 +3171,14 @@ ${tpl.gen.trim()}
 
       liveBox.innerHTML = "";
       addUserCard(liveBox, badge, displayUserText);
-      const card = createModelCard(liveBox, modelLabel);
+      const card = createModelCard(liveBox, providerTitle, modelLabel);
 
       const contents = [{ role: "user", parts }];
 
-      await streamGemini(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+      await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
         if (answerText) {
           state.chatHistory.push({ role: "model", text: answerText });
-          saveToHistory(shortTitle, modelLabel, displayUserText, answerText, thoughtText, usage, "problem");
+          saveToHistory(shortTitle, modelLabel, displayUserText, answerText, thoughtText, usage, "problem", providerTitle);
         } else if (aborted) {
           const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
           state.chatHistory.push({ role: "model", text: snippet });
@@ -2387,14 +3192,15 @@ ${tpl.gen.trim()}
 
     async function sendFollowup() {
       if (state.isStreaming || state.viewingHistoryId !== null) return;
-      if (!getApiKey()) { openApiModal(); return; }
+      if (!validateBeforeRun()) return;
       const q = $("followupInput").value.trim();
       if (!q) return;
 
       $("followupInput").value = "";
       const liveBox = $("liveOutputScroll");
       const modelLabel = currentModelLabel();
-      const useSearch = state.apiTier === "paid" && $("searchToggle").checked;
+      const providerTitle = currentProviderTitle();
+      const useSearch = getActiveTier() === "paid" && $("searchToggle").checked;
 
       // Start a brand-new Free Chat session if no active session exists yet
       if (!state.hasActiveSession || !state.initialUserParts) {
@@ -2409,13 +3215,13 @@ ${tpl.gen.trim()}
 
         liveBox.innerHTML = "";
         addUserCard(liveBox, t("userFreeChat"), q);
-        const card = createModelCard(liveBox, modelLabel);
+        const card = createModelCard(liveBox, providerTitle, modelLabel);
         const contents = [{ role: "user", parts: state.initialUserParts }];
 
-        await streamGemini(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+        await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
           if (answerText) {
             state.chatHistory.push({ role: "model", text: answerText });
-            saveToHistory(q.split("\n")[0], modelLabel, q, answerText, thoughtText, usage, "free_chat");
+            saveToHistory(q.split("\n")[0], modelLabel, q, answerText, thoughtText, usage, "free_chat", providerTitle);
           } else if (aborted) {
             const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
             state.chatHistory.push({ role: "model", text: snippet });
@@ -2428,13 +3234,13 @@ ${tpl.gen.trim()}
 
       // Continue existing session (either problem or free_chat)
       addUserCard(liveBox, t("userFollowup"), q);
-      const card = createModelCard(liveBox, modelLabel);
+      const card = createModelCard(liveBox, providerTitle, modelLabel);
 
       const contents = [{ role: "user", parts: state.initialUserParts }];
       state.chatHistory.forEach((m) => contents.push({ role: m.role, parts: [{ text: m.text }] }));
       contents.push({ role: "user", parts: [{ text: q }] });
 
-      await streamGemini(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+      await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
         state.chatHistory.push({ role: "user", text: q });
         if (answerText) {
           state.chatHistory.push({ role: "model", text: answerText });
@@ -2466,8 +3272,10 @@ ${tpl.gen.trim()}
     });
 
     // Init
-    syncThinkingOptions();
+    loadCachedOrModels();
     applyLanguage();
+    fetchOpenRouterFreeModels(false);
+    if (getOrKey()) syncOpenRouterKeyInfo(true);
   </script>
 </body>
 </html>
