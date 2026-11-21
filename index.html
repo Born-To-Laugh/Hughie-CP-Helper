@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hughie's CP Helper</title>
-  <link rel="icon" type="image/png" href="./meodalat.jpg" />
-  <link rel="apple-touch-icon" href="./meodalat.jpg" />
+  <link rel="icon" type="image/png" href="./siu.png" />
+  <link rel="apple-touch-icon" href="./siu.png" />
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github-dark.min.css" media="(prefers-color-scheme: dark)" />
@@ -823,7 +823,7 @@
 <body>
   <header>
     <div class="brand">
-      <img src="./meodalat.jpg" alt="" class="brand-logo" onerror="this.style.display='none'" />
+      <img src="./siu.png" alt="" class="brand-logo" onerror="this.style.display='none'" />
       <span class="brand-title">Hughie's CP Helper</span>
       <span class="brand-sub">Born_To_Laugh</span>
     </div>
@@ -2101,3 +2101,1562 @@ Query cand by query tin-tout, then check
       $("followupInput").disabled = !canChat;
       $("btnFollowup").disabled = !canChat;
       $("followupInput").placeholder = state.hasActiveSession ? t("phFollowup") : t("phFreeChat");
+      $("btnFollowup").textContent = state.hasActiveSession ? t("btnFollowup") : t("btnSendChat");
+    }
+
+    function switchToLiveView() {
+      state.viewingHistoryId = null;
+      state.viewingHistoryItem = null;
+      updateViewModeUI();
+      renderHistoryList();
+      $("liveOutputScroll").scrollTop = $("liveOutputScroll").scrollHeight;
+    }
+
+    function updateSearchToggleUI() {
+      const isPaid = getActiveTier() === "paid";
+      const cb = $("searchToggle");
+      cb.disabled = !isPaid;
+      $("searchToggleRow").classList.toggle("disabled", !isPaid);
+
+      if (state.provider === "openrouter") {
+        $("searchToggleLabel").textContent = isPaid ? t("searchEnabledOR") : t("searchDisabledOR");
+        $("oiFreeNotice").textContent = !isPaid ? t("oiFreeWarnOR") : "";
+      } else {
+        $("searchToggleLabel").textContent = isPaid ? t("searchEnabledGemini") : t("searchDisabledGemini");
+        $("oiFreeNotice").textContent = !isPaid ? t("oiFreeWarnGemini") : "";
+      }
+
+      if (!isPaid) cb.checked = false;
+      else cb.checked = state.inputType === "oi_code";
+    }
+
+    function refreshApiStatus() {
+      const hasKey = Boolean(getActiveKey());
+      $("apiDot").classList.toggle("ok", hasKey);
+      if (state.provider === "openrouter") {
+        $("apiBtnText").textContent = hasKey ? t("apiReadyOR") : t("apiMissingOR");
+      } else {
+        $("apiBtnText").textContent = hasKey ? t("apiReadyGemini") : t("apiMissingGemini");
+      }
+      if (!state.hasActiveSession && !$("liveOutputScroll").querySelector(".msg-card")) {
+        renderEmptyState();
+      }
+    }
+
+    function renderEmptyState() {
+      const hasKey = Boolean(getActiveKey());
+      const bannerText = state.provider === "openrouter" ? t("bannerNoKeyOR") : t("bannerNoKeyGemini");
+      const banner = hasKey
+        ? ""
+        : `<div class="api-banner">
+             <span>${bannerText}</span>
+             <button class="btn-primary" onclick="openApiModal()" style="white-space:nowrap;">${t("btnFillNow")}</button>
+           </div>`;
+
+      $("liveOutputScroll").innerHTML = `
+        <div class="empty-state" id="emptyState">
+          <h2>${t("emptyTitle")}</h2>
+          <p>${t("emptyDesc")}</p>
+          ${banner}
+        </div>`;
+    }
+
+    // =========================================================================
+    // 7. SYSTEM INSTRUCTION & TASK PROMPTS
+    // =========================================================================
+    function buildSystemInstruction() {
+      const tpl = getTemplates();
+      const langDirective =
+        state.lang === "vi"
+          ? "NGÔN NGỮ TRẢ LỜI BẮT BUỘC: Tiếng Việt tự nhiên, súc tích, chính xác toán học (giữ thuật ngữ CP tiếng Anh quen thuộc như DP, Segment Tree, HLD, DSU, Greedy...)."
+          : "MANDATORY RESPONSE LANGUAGE: Clear, concise, mathematically rigorous English.";
+
+      return `You are an elite Competitive Programming Coach (IOI / ICPC World Finals level) assisting Hughie Do (handle: Born_To_Laugh).
+${langDirective}
+Use LaTeX ($...$ and $$...$$) for mathematical expressions and time/space complexities.
+
+================================================================
+MANDATORY C++ CODING STYLE & TEMPLATES (FOLLOW EXACTLY)
+================================================================
+Every single C++ snippet, full solution, or gentest() you write MUST strictly obey all rules below without exception:
+${tpl.rules}
+
+Study Hughie Do's exact C++ style exemplar below (including the final /* ... */ summary comment block at the very bottom!) and replicate its spacing, brace placement, global array naming (maxn), macro usage (alle, fi, se), and bottom comment block faithfully:
+\`\`\`cpp
+${tpl.ref.trim()}
+\`\`\`
+
+Reference Solution Template (always wrap full solutions in this structure, placing structs/globals/helper functions/solve() above signed main(){}, and the /* ... */ summary block AFTER signed main(){}):
+\`\`\`cpp
+${tpl.sol.trim()}
+\`\`\`
+
+Test Generator Template (when asked for Generate Test, output ONLY void gentest(){...}, calling rando(l, r), with // comments explaining each generated block):
+\`\`\`cpp
+${tpl.gen.trim()}
+\`\`\``;
+    }
+
+    function buildProblemHeader() {
+      if (state.inputType === "oi_code") {
+        const codeName = $("oiCodeInput").value.trim();
+        const searchHint =
+          getActiveTier() === "paid" && $("searchToggle").checked
+            ? "Use web search to retrieve the exact problem statement, constraints, and I/O format, then briefly confirm the problem summary first."
+            : "Identify this problem from your knowledge; if you are not 100% certain of exact constraints/statement, state that clearly before proceeding.";
+        return `### Problem (OI Code): \`${codeName}\`\n${searchHint}`;
+      }
+      if (state.inputType === "pdf") {
+        const extra = $("pdfExtraText").value.trim();
+        return "### Problem:\nRead the problem statement from the attached PDF." + (extra ? `\nNote: ${extra}` : "");
+      }
+      return `### Problem Statement:\n${$("statementText").value.trim()}`;
+    }
+
+    function buildTaskInstruction() {
+      const isVi = state.lang === "vi";
+      const noteText = $("ideaText").value.trim();
+
+      if (state.mode === "hint_sol") {
+        if (state.hintOption === "hint") {
+          if (noteText) {
+            return isVi
+              ? `### Yêu cầu: CHO HINT THEO HƯỚNG ĐANG NGHĨ\nĐây là ghi chú / hướng suy nghĩ hiện tại của tôi:\n\`\`\`\n${noteText}\n\`\`\`\nTuyệt đối KHÔNG tiết lộ lời giải hoàn chỉnh hay viết code. Hãy:\n1. Nhận xét ngắn gọn hướng tôi đang nghĩ có đi đúng hướng không (nếu lệch thì chỉ nhẹ chỗ vướng).\n2. Đưa ra 2-3 gợi ý (Hint) tăng dần nối tiếp trực tiếp từ suy nghĩ của tôi để giúp tôi tự nghĩ tiếp ra lời giải.`
+              : `### Task: GUIDED HINT FROM MY CURRENT THOUGHTS\nMy current notes / thinking direction:\n\`\`\`\n${noteText}\n\`\`\`\nDo NOT reveal the full solution or code. Please:\n1. Briefly evaluate whether my current direction is on track (gently point out any pitfall if off-track).\n2. Provide 2-3 progressive hints building directly on my thoughts so I can continue solving it myself.`;
+          }
+          return isVi
+            ? "### Yêu cầu: CHỈ CHO HINT\nTuyệt đối KHÔNG tiết lộ lời giải hoàn chỉnh hay viết code. Chia thành 3 mức Hint tăng dần (Hint 1: quan sát nền tảng; Hint 2: hướng tiếp cận / CTDL; Hint 3: chìa khoá tối ưu) để tôi tự suy nghĩ."
+            : "### Task: HINT ONLY\nDo NOT reveal the full solution or code. Provide 3 progressive hints (Hint 1: key observation; Hint 2: approach/data structure; Hint 3: crucial transition/optimization).";
+        }
+
+        const solNoteBlock = noteText
+          ? isVi
+            ? `\n\nGhi chú / hướng muốn tham khảo thêm của tôi:\n\`\`\`\n${noteText}\n\`\`\``
+            : `\n\nMy notes / preferred context to address:\n\`\`\`\n${noteText}\n\`\`\``
+          : "";
+
+        return (
+          (isVi
+            ? "### Yêu cầu: SOLUTION CHI TIẾT\nPhân tích trực giác, chứng minh tính đúng đắn, trình bày thuật toán/công thức đầy đủ và đánh giá độ phức tạp Time & Space theo ràng buộc."
+            : "### Task: FULL SOLUTION\nProvide intuition, formal correctness proof, complete algorithm/formula, and exact Time & Space complexity.") +
+          solNoteBlock
+        );
+      }
+
+      if (state.mode === "check_idea") {
+        return isVi
+          ? `### Yêu cầu: KIỂM TRA Ý TƯỞNG / CÔNG THỨC\nNội dung cần kiểm tra:\n\`\`\`\n${noteText}\n\`\`\`\nHãy đánh giá kỹ:\n1. Tính đúng đắn và các trường hợp biên (corner cases).\n2. Nếu sai hoặc thiếu: đưa ra 1 test phản chứng nhỏ nhất và giải thích.\n3. Độ phức tạp với constraint của đề (AC hay TLE/MLE).\n4. Cách sửa / tối ưu để AC.`
+          : `### Task: CHECK IDEA / FORMULA\nDraft to verify:\n\`\`\`\n${noteText}\n\`\`\`\nEvaluate carefully:\n1. Correctness and corner cases.\n2. If flawed: give the smallest counterexample test and explain why.\n3. Time/Space complexity against constraints.\n4. Exact fix or optimization to AC.`;
+      }
+
+      if (state.codeOption === "ref_code") {
+        return isVi
+          ? "### Yêu cầu: VIẾT CODE MẪU CHUẨN\nViết code C++ hoàn chỉnh tuân thủ tuyệt đối template và phong cách của Hughie Do (không space trước `{`, không space sau `if`/`for`/`while`, dùng `maxn`, biến toàn cục, `void solve(){...}`, `alle`, `fi`/`se`, giữ đúng `signed main(){}`).\nBẮT BUỘC: Sau `signed main(){}` ở cuối file code, viết một khối comment `/* ... */` ngắn gọn theo đúng phong cách của tôi (liệt kê `control:`, trạng thái/công thức dùng `->` hoặc `==>`, và tóm tắt nhiệm vụ từng hàm/thao tác chính). Không viết `gentest()` ở lượt này." +
+            (noteText ? `\nGhi chú thêm: ${noteText}` : "")
+          : "### Task: REFERENCE CODE\nWrite the complete C++ solution strictly following Hughie Do's template and coding style (no space before `{`, no space after `if`/`for`/`while`, `maxn`, global variables, `void solve(){...}`, `alle`, `fi`/`se`, exact `signed main(){}`).\nMANDATORY: Immediately after `signed main(){}` at the very end of the code, include a `/* ... */` block comment summarizing the algorithm in Hughie's exact shorthand style (`control:`, states/formulas with `->` / `==>`, and concise operation/function summaries). Do not output `gentest()` here." +
+            (noteText ? `\nExtra notes: ${noteText}` : "");
+      }
+
+      return isVi
+        ? "### Yêu cầu: VIẾT CODE SINH TEST (`gentest`)\nCHỈ trả ra duy nhất hàm `void gentest(){ ... }` ghi vào `\"inp.txt\"` và dùng `rando(l, r)` có sẵn (không `#include`, không `main()`, không tự định nghĩa lại `rando`). Tuân thủ phong cách không space trước `{` và không space sau `if`/`for`/`while`.\nBẮT BUỘC: Thêm comment `// ...` rõ ràng ngay phía trên từng block code trong `gentest()` để giải thích block đó sẽ sinh dữ liệu gì (sinh tham số, sinh cây/đồ thị, sinh mảng, sinh truy vấn...). Đảm bảo sinh đúng format và tính chất hợp lệ của đề; mặc định kích thước vừa để stress-test kèm comment chỗ tăng lên max constraint." +
+          (noteText ? `\nGhi chú thêm: ${noteText}` : "")
+        : "### Task: GENERATE TEST (`gentest`)\nOutput ONLY the single function `void gentest(){ ... }` writing to `\"inp.txt\"` using the pre-existing `rando(l, r)` (no `#include`, no `main()`, no re-defining `rando`). Follow strict brace/keyword spacing (`if(`, `){`).\nMANDATORY: Add clear `// ...` comments above each logical block inside `gentest()` explaining what that block generates (parameters, tree/graph structure, arrays, queries, etc.). Ensure valid input invariants; default to stress-test sizes with comments for max constraints." +
+          (noteText ? `\nExtra notes: ${noteText}` : "");
+    }
+
+    // =========================================================================
+    // 8. HIGH-PERFORMANCE INCREMENTAL MARKDOWN + KATEX + HLJS RENDERER
+    // =========================================================================
+    function isNearBottom(el, threshold = 110) {
+      return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    }
+
+    function splitMarkdownBlocks(raw) {
+      if (!raw) return [];
+      const lines = raw.split("\n");
+      const blocks = [];
+      let cur = [];
+      let inFence = null;
+      let inDisplayMath = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        const openFenceMatch = !inFence ? line.match(/^\s{0,3}(`{3,}|~{3,})/) : null;
+        if (openFenceMatch) {
+          inFence = { ch: openFenceMatch[1][0], len: openFenceMatch[1].length };
+        } else if (inFence) {
+          const closeMatch = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+          if (closeMatch && closeMatch[1][0] === inFence.ch && closeMatch[1].length >= inFence.len) {
+            inFence = null;
+          }
+        }
+
+        if (!inFence) {
+          const dollarMatches = line.replace(/\\\$\$/g, "").match(/\$\$/g);
+          if (dollarMatches && dollarMatches.length % 2 === 1) {
+            inDisplayMath = !inDisplayMath;
+          }
+        }
+
+        cur.push(line);
+
+        if (line.trim() === "" && !inFence && !inDisplayMath && cur.length > 0) {
+          let nextNonEmpty = "";
+          for (let j = i + 1; j < lines.length; j++) {
+            if (lines[j].trim() !== "") {
+              nextNonEmpty = lines[j];
+              break;
+            }
+          }
+          const prevNonEmpty = [...cur].reverse().find((l) => l.trim() !== "") || "";
+          const prevIsListOrQuote = /^\s*(?:[-*+]|\d+[.)])\s|^\s*>/.test(prevNonEmpty);
+          const nextIsListCont = /^\s*(?:[-*+]|\d+[.)])\s|^\s*>|^(?:\t| {4})\S/.test(nextNonEmpty);
+
+          if (!(prevIsListOrQuote && nextIsListCont)) {
+            const chunk = cur.join("\n").trim();
+            if (chunk) blocks.push(chunk);
+            cur = [];
+          }
+        }
+      }
+
+      const tail = cur.join("\n").trim();
+      if (tail) blocks.push(tail);
+      return blocks;
+    }
+
+    function hasUnclosedFence(blockText) {
+      const lines = blockText.split("\n");
+      let inFence = null;
+      for (const line of lines) {
+        if (!inFence) {
+          const m = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+          if (m) inFence = { ch: m[1][0], len: m[1].length };
+        } else {
+          const m = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+          if (m && m[1][0] === inFence.ch && m[1].length >= inFence.len) inFence = null;
+        }
+      }
+      return Boolean(inFence);
+    }
+
+    function renderMarkdown(container, rawMarkdown, options = {}) {
+      const { escapeRawTags = false, skipHighlight = false, skipMath = false } = options;
+
+      const codeBlocks = [];
+      let text = rawMarkdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+        codeBlocks.push(m);
+        return `@@CODE_${codeBlocks.length - 1}@@`;
+      });
+
+      const mathBlocks = [];
+      text = text
+        .replace(/\$\$([\s\S]+?)\$\$/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
+        .replace(/\\\[([\s\S]+?)\\\]/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
+        .replace(/\\\(([\s\S]+?)\\\)/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
+        .replace(/\$([^\n$]+?)\$/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; });
+
+      if (escapeRawTags) {
+        text = text.replace(/<(?=[A-Za-z!/])/g, "&lt;");
+      }
+
+      text = text.replace(/@@CODE_(\d+)@@/g, (_, idx) => codeBlocks[Number(idx)]);
+
+      if (window.marked && typeof window.marked.parse === "function") {
+        let html = window.marked.parse(text, { breaks: true });
+        html = html.replace(/@@MATH_(\d+)@@/g, (_, idx) => mathBlocks[Number(idx)]);
+        container.innerHTML = html;
+      } else {
+        container.textContent = rawMarkdown;
+        return;
+      }
+
+      container.querySelectorAll("pre").forEach((pre) => {
+        if (pre.parentElement && pre.parentElement.classList.contains("code-box")) return;
+        const codeEl = pre.querySelector("code");
+        if (!codeEl) return;
+
+        if (!skipHighlight && window.hljs && typeof window.hljs.highlightElement === "function") {
+          try { window.hljs.highlightElement(codeEl); } catch {}
+        }
+
+        const cls = codeEl.className || "";
+        const langMatch = cls.match(/language-([\w+-]+)/);
+        const lang = langMatch ? langMatch[1] : "code";
+
+        const box = document.createElement("div");
+        box.className = "code-box";
+
+        const toolbar = document.createElement("div");
+        toolbar.className = "code-toolbar";
+        toolbar.innerHTML = `<span class="code-lang">${lang}</span>`;
+
+        const actions = document.createElement("div");
+        actions.className = "code-toolbar-actions";
+
+        const wrapBtn = document.createElement("button");
+        wrapBtn.className = "copy-btn";
+        wrapBtn.textContent = t("wrap");
+        wrapBtn.addEventListener("click", () => {
+          const wrapped = pre.classList.toggle("wrap-lines");
+          wrapBtn.classList.toggle("active", wrapped);
+        });
+
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "copy-btn";
+        copyBtn.textContent = t("copy");
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(codeEl.textContent);
+          copyBtn.textContent = t("copied");
+          setTimeout(() => (copyBtn.textContent = t("copy")), 1400);
+        });
+
+        actions.appendChild(wrapBtn);
+        actions.appendChild(copyBtn);
+        toolbar.appendChild(actions);
+
+        pre.parentNode.insertBefore(box, pre);
+        box.appendChild(toolbar);
+        box.appendChild(pre);
+      });
+
+      if (!skipMath && typeof window.renderMathInElement === "function") {
+        try {
+          window.renderMathInElement(container, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\(", right: "\\)", display: false },
+              { left: "\\[", right: "\\]", display: true },
+            ],
+            throwOnError: false,
+          });
+        } catch {}
+      }
+    }
+
+    function renderMarkdownAsync(container, rawMarkdown, options = {}) {
+      const token = (container._asyncRenderToken = (container._asyncRenderToken || 0) + 1);
+      if (!rawMarkdown) {
+        container.innerHTML = "";
+        return;
+      }
+      if (rawMarkdown.length < 5000) {
+        renderMarkdown(container, rawMarkdown, options);
+        return;
+      }
+
+      const blocks = splitMarkdownBlocks(rawMarkdown);
+      container.innerHTML = "";
+      let idx = 0;
+
+      function step() {
+        if (container._asyncRenderToken !== token) return;
+        const frameStart = performance.now();
+        const frag = document.createDocumentFragment();
+        while (idx < blocks.length) {
+          const div = document.createElement("div");
+          div.className = "md-chunk";
+          renderMarkdown(div, blocks[idx], options);
+          frag.appendChild(div);
+          idx++;
+          if (performance.now() - frameStart >= 12) break;
+        }
+        container.appendChild(frag);
+        if (idx < blocks.length) {
+          requestAnimationFrame(step);
+        }
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    function createStreamRenderer(container, scrollParent) {
+      let lastRenderTime = 0;
+      let lastRenderCost = 0;
+      let pendingRaf = null;
+      let latestText = "";
+
+      function sync(raw, isFinal) {
+        const blocks = splitMarkdownBlocks(raw);
+        if (blocks.length === 0) return;
+
+        const stickToBottom = scrollParent && state.viewingHistoryId === null && isNearBottom(scrollParent);
+        const start = performance.now();
+
+        while (container.children.length > blocks.length) {
+          container.lastElementChild.remove();
+        }
+
+        for (let i = 0; i < blocks.length; i++) {
+          const blockText = blocks[i];
+          const isLast = i === blocks.length - 1;
+          let chunk = container.children[i];
+
+          if (!chunk) {
+            chunk = document.createElement("div");
+            chunk.className = "md-chunk";
+            container.appendChild(chunk);
+          }
+
+          if (chunk._raw === blockText && (!isLast || !isFinal || chunk._finalized)) {
+            continue;
+          }
+
+          const unclosed = isLast && !isFinal && hasUnclosedFence(blockText);
+          renderMarkdown(chunk, blockText, {
+            skipHighlight: unclosed || (isLast && !isFinal && blockText.length > 3000),
+            skipMath: unclosed,
+          });
+          chunk._raw = blockText;
+          chunk._finalized = !isLast || isFinal;
+        }
+
+        lastRenderCost = performance.now() - start;
+        lastRenderTime = performance.now();
+
+        if (stickToBottom) {
+          scrollParent.scrollTop = scrollParent.scrollHeight;
+        }
+      }
+
+      return {
+        update(raw) {
+          latestText = raw;
+          if (pendingRaf) return;
+          const adaptiveGap = Math.max(110, Math.min(550, lastRenderCost * 4));
+          if (performance.now() - lastRenderTime < adaptiveGap) return;
+
+          pendingRaf = requestAnimationFrame(() => {
+            pendingRaf = null;
+            sync(latestText, false);
+          });
+        },
+        finalize(raw) {
+          if (pendingRaf) {
+            cancelAnimationFrame(pendingRaf);
+            pendingRaf = null;
+          }
+          latestText = raw;
+          sync(raw, true);
+        },
+      };
+    }
+
+    // =========================================================================
+    // 9. UI CARDS & HISTORY
+    // =========================================================================
+    function addUserCard(targetContainer, badge, text) {
+      const empty = targetContainer.querySelector("#emptyState");
+      if (empty) empty.remove();
+
+      const card = document.createElement("div");
+      card.className = "msg-card user";
+      card.innerHTML = `
+        <div class="msg-meta">
+          <span><strong>${t("userYou")}</strong></span>
+          <span class="tag">${badge}</span>
+        </div>
+        <div class="markdown-body user-body"></div>
+      `;
+      renderMarkdown(card.querySelector(".user-body"), text, { escapeRawTags: true });
+      targetContainer.appendChild(card);
+      targetContainer.scrollTop = targetContainer.scrollHeight;
+    }
+
+    function createModelCard(targetContainer, providerTitle, label) {
+      const empty = targetContainer.querySelector("#emptyState");
+      if (empty) empty.remove();
+
+      const card = document.createElement("div");
+      card.className = "msg-card";
+      card.innerHTML = `
+        <div class="msg-meta">
+          <span><strong>${providerTitle}</strong> <span class="tag">${label}</span></span>
+          <span class="status-text" style="color:var(--accent);"></span>
+        </div>
+        <details class="thought-box hidden" open>
+          <summary>${t("thinkingHeader")}</summary>
+          <div class="thought-content markdown-body"></div>
+        </details>
+        <div class="markdown-body answer-body"></div>
+        <div class="sources-bar hidden"></div>
+        <div class="msg-tokens hidden"></div>
+      `;
+      targetContainer.appendChild(card);
+      return card;
+    }
+
+    function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem", providerName = "Gemini") {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]"); } catch {}
+      const safeThought = thoughtText && thoughtText.length > 80000 ? thoughtText.slice(0, 80000) + "\n...[truncated]" : (thoughtText || "");
+      list.unshift({
+        id: Date.now(),
+        title: title.slice(0, 60),
+        modelLabel,
+        providerName,
+        userText,
+        answerText,
+        thoughtText: safeThought,
+        usage: usage || null,
+        sessionType,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+
+      let trimmed = list.slice(0, 20);
+      while (trimmed.length > 0) {
+        try {
+          localStorage.setItem(LS_KEYS.history, JSON.stringify(trimmed));
+          break;
+        } catch {
+          trimmed.pop();
+        }
+      }
+      renderHistoryList();
+    }
+
+    function setupLazyThoughtBox(tb, thoughtContent, thoughtText) {
+      tb.classList.remove("hidden");
+      tb.open = false;
+      tb.querySelector("summary").textContent = t("thinkingDone");
+      tb._rendered = false;
+      tb.addEventListener("toggle", () => {
+        if (tb.open && !tb._rendered) {
+          tb._rendered = true;
+          renderMarkdownAsync(thoughtContent, thoughtText);
+        }
+      });
+    }
+
+    function previewHistoryItem(item) {
+      state.viewingHistoryId = item.id;
+      state.viewingHistoryItem = item;
+      const box = $("historyOutputScroll");
+      box.innerHTML = "";
+
+      addUserCard(box, `${t("lblHistoryTag")} | ${item.modelLabel}`, item.userText);
+      const card = createModelCard(box, item.providerName || "AI", item.modelLabel);
+      card.querySelector(".status-text").textContent = t("statusSaved");
+      card.querySelector(".status-text").style.color = "var(--green)";
+
+      if (item.thoughtText) {
+        setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
+      }
+
+      renderMarkdownAsync(card.querySelector(".answer-body"), item.answerText);
+
+      if (item.usage) {
+        const tokEl = card.querySelector(".msg-tokens");
+        tokEl.textContent = formatUsageLine(item.usage);
+        tokEl.classList.remove("hidden");
+      }
+
+      updateViewModeUI();
+      renderHistoryList();
+      box.scrollTop = 0;
+    }
+
+    function renderHistoryList() {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]"); } catch {}
+      const el = $("historyList");
+      if (!list.length) {
+        el.innerHTML = `<div style="font-size:12px; color:var(--muted);">${t("historyEmpty")}</div>`;
+        return;
+      }
+      el.innerHTML = "";
+      list.forEach((item) => {
+        const div = document.createElement("div");
+        div.className = "history-item" + (state.viewingHistoryId === item.id ? " viewing" : "");
+        div.innerHTML = `<span class="history-title"></span><span style="color:var(--muted); font-size:11px;">${item.time}</span>`;
+        div.querySelector(".history-title").textContent = item.title;
+        div.addEventListener("click", () => previewHistoryItem(item));
+        el.appendChild(div);
+      });
+    }
+
+    // =========================================================================
+    // 10. UNIFIED STREAMING (GEMINI NATIVE & OPENROUTER)
+    // =========================================================================
+    function buildOpenRouterPayload(contents, useSearch, modelInfo, thinkingLevel) {
+      let hasPdf = false;
+      const messages = [{ role: "system", content: buildSystemInstruction() }];
+
+      for (const m of contents) {
+        const role = m.role === "model" ? "assistant" : "user";
+        const parts = m.parts || [];
+        const hasBinary = parts.some((p) => p.inlineData);
+
+        if (hasBinary) {
+          const contentArr = [];
+          for (const p of parts) {
+            if (p.inlineData) {
+              hasPdf = true;
+              contentArr.push({
+                type: "file",
+                file: {
+                  filename: state.pdfName || "problem.pdf",
+                  file_data: `data:${p.inlineData.mimeType || "application/pdf"};base64,${p.inlineData.data}`,
+                },
+              });
+            } else if (p.text) {
+              contentArr.push({ type: "text", text: p.text });
+            }
+          }
+          messages.push({ role, content: contentArr });
+        } else {
+          const combined = parts.map((p) => p.text || "").join("\n");
+          messages.push({ role, content: combined });
+        }
+      }
+
+      const body = {
+        model: modelInfo.id,
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
+      };
+
+      if (modelInfo.supportsReasoning) {
+        body.reasoning = { effort: thinkingLevel.toLowerCase() };
+      }
+
+      const plugins = [];
+      if (hasPdf) {
+        plugins.push({ id: "file-parser", pdf: { engine: "cloudflare-ai" } });
+      }
+      if (state.orTier === "paid" && useSearch) {
+        plugins.push({ id: "web" });
+      }
+      if (plugins.length > 0) {
+        body.plugins = plugins;
+      }
+
+      return body;
+    }
+
+    async function streamAI(contents, useSearch, card, onComplete) {
+      const provider = state.provider;
+      const modelInfo = getActiveModelInfo();
+      let thinkingLevel = $("thinkingSelect").value;
+      if (!modelInfo.supportsXhigh && thinkingLevel === "XHIGH") {
+        thinkingLevel = "HIGH";
+      }
+
+      let endpoint = "";
+      let headers = { "Content-Type": "application/json" };
+      let body = null;
+
+      if (provider === "openrouter") {
+        const orKey = getOrKey();
+        endpoint = "https://openrouter.ai/api/v1/chat/completions";
+        headers.Authorization = `Bearer ${orKey}`;
+        headers["HTTP-Referer"] = location.origin === "null" ? "https://localhost" : location.origin;
+        headers["X-Title"] = "Hughie's CP Helper";
+        body = buildOpenRouterPayload(contents, useSearch, modelInfo, thinkingLevel);
+      } else {
+        const apiKey = getGeminiKey();
+        endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelInfo.id}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
+        body = {
+          systemInstruction: { parts: [{ text: buildSystemInstruction() }] },
+          contents,
+          generationConfig: {
+            maxOutputTokens: 65536,
+            thinkingConfig: {
+              thinkingLevel,
+              includeThoughts: true,
+            },
+          },
+        };
+        if (state.apiTier === "paid" && useSearch) {
+          body.tools = [{ google_search: {} }];
+        }
+      }
+
+      state.abortController = new AbortController();
+      state.isStreaming = true;
+      $("btnRun").disabled = true;
+      $("btnStop").classList.remove("hidden");
+      updateViewModeUI();
+
+      const liveBox = $("liveOutputScroll");
+      const statusEl = card.querySelector(".status-text");
+      const thoughtBox = card.querySelector(".thought-box");
+      const thoughtSummary = thoughtBox.querySelector("summary");
+      const thoughtContent = card.querySelector(".thought-content");
+      const answerEl = card.querySelector(".answer-body");
+      const sourcesEl = card.querySelector(".sources-bar");
+      const tokensEl = card.querySelector(".msg-tokens");
+
+      const streamRenderer = createStreamRenderer(answerEl, liveBox);
+      let rawThoughtEl = null;
+      let thoughtRafPending = false;
+      let lastThoughtFlush = 0;
+
+      function flushThoughtRaw() {
+        if (!fullThought) return;
+        if (!rawThoughtEl) {
+          rawThoughtEl = document.createElement("div");
+          rawThoughtEl.className = "thought-raw";
+          thoughtContent.innerHTML = "";
+          thoughtContent.appendChild(rawThoughtEl);
+        }
+        const stickThought = isNearBottom(thoughtContent, 70);
+        rawThoughtEl.textContent = fullThought;
+        if (stickThought) {
+          thoughtContent.scrollTop = thoughtContent.scrollHeight;
+        }
+        lastThoughtFlush = performance.now();
+      }
+
+      function finalizeThoughtDisplay() {
+        if (!fullThought) return;
+        thoughtSummary.textContent = t("thinkingDone");
+        if (thoughtBox.open) {
+          thoughtBox._rendered = true;
+          renderMarkdownAsync(thoughtContent, fullThought);
+        } else {
+          thoughtBox._rendered = false;
+          if (!thoughtBox._lazyBound) {
+            thoughtBox._lazyBound = true;
+            thoughtBox.addEventListener("toggle", () => {
+              if (thoughtBox.open && !thoughtBox._rendered) {
+                thoughtBox._rendered = true;
+                renderMarkdownAsync(thoughtContent, fullThought);
+              }
+            });
+          }
+        }
+      }
+
+      let fullThought = "";
+      let fullAnswer = "";
+      let latestUsage = null;
+      let countedRpd = false;
+      const collectedSources = [];
+      const seenUrls = new Set();
+
+      try {
+        statusEl.textContent = `${t("statusRunning")} (${modelInfo.id}${modelInfo.supportsReasoning ? " / " + thinkingLevel : ""})`;
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(body),
+          signal: state.abortController.signal,
+        });
+
+        if (!res.ok) {
+          let errMsg = `HTTP ${res.status}`;
+          try {
+            const errJson = await res.json();
+            errMsg = errJson?.error?.message || errMsg;
+          } catch {}
+          const err = new Error(errMsg);
+          err.httpStatus = res.status;
+          throw err;
+        }
+
+        countedRpd = true;
+        incrementRpd(provider);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() || "";
+
+          let gotThought = false;
+          let gotAnswer = false;
+
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line.startsWith("data:")) continue;
+            const jsonStr = line.slice(5).trim();
+            if (!jsonStr || jsonStr === "[DONE]") continue;
+
+            let payload;
+            try { payload = JSON.parse(jsonStr); } catch { continue; }
+
+            if (payload?.error) {
+              throw new Error(payload.error.message || JSON.stringify(payload.error));
+            }
+
+            if (provider === "openrouter") {
+              if (payload.usage) {
+                const inp = payload.usage.prompt_tokens || 0;
+                const out = payload.usage.completion_tokens || 0;
+                const thk = payload.usage.completion_tokens_details?.reasoning_tokens || 0;
+                const tot = payload.usage.total_tokens || (inp + out);
+                latestUsage = {
+                  promptTokenCount: inp,
+                  thoughtsTokenCount: thk,
+                  candidatesTokenCount: out,
+                  totalTokenCount: tot,
+                };
+                tokensEl.textContent = formatUsageLine(latestUsage);
+                tokensEl.classList.remove("hidden");
+              }
+
+              const choice = payload?.choices?.[0];
+              if (!choice) continue;
+
+              const delta = choice.delta || {};
+              let thoughtChunk = "";
+              if (typeof delta.reasoning === "string" && delta.reasoning) {
+                thoughtChunk = delta.reasoning;
+              } else if (typeof delta.reasoning_content === "string" && delta.reasoning_content) {
+                thoughtChunk = delta.reasoning_content;
+              } else if (Array.isArray(delta.reasoning_details)) {
+                for (const rd of delta.reasoning_details) {
+                  if (rd?.type === "reasoning.text" && rd.text) thoughtChunk += rd.text;
+                  else if (rd?.type === "reasoning.summary" && rd.summary) thoughtChunk += rd.summary;
+                }
+              }
+
+              if (thoughtChunk) {
+                fullThought += thoughtChunk;
+                thoughtBox.classList.remove("hidden");
+                gotThought = true;
+              }
+
+              if (typeof delta.content === "string" && delta.content) {
+                fullAnswer += delta.content;
+                gotAnswer = true;
+              }
+
+              const annotations = delta.annotations || choice.message?.annotations || [];
+              for (const ann of annotations) {
+                const uc = ann?.url_citation;
+                if (uc?.url && !seenUrls.has(uc.url)) {
+                  seenUrls.add(uc.url);
+                  collectedSources.push({ title: uc.title || uc.url, uri: uc.url });
+                }
+              }
+            } else {
+              if (payload?.usageMetadata) {
+                latestUsage = payload.usageMetadata;
+                tokensEl.textContent = formatUsageLine(latestUsage);
+                tokensEl.classList.remove("hidden");
+              }
+
+              const cand = payload?.candidates?.[0];
+              if (!cand) continue;
+
+              const parts = cand?.content?.parts || [];
+              for (const part of parts) {
+                if (!part.text) continue;
+                if (part.thought) {
+                  fullThought += part.text;
+                  thoughtBox.classList.remove("hidden");
+                  gotThought = true;
+                } else {
+                  fullAnswer += part.text;
+                  gotAnswer = true;
+                }
+              }
+
+              const chunks = cand?.groundingMetadata?.groundingChunks || [];
+              for (const gc of chunks) {
+                if (gc.web?.uri && !seenUrls.has(gc.web.uri)) {
+                  seenUrls.add(gc.web.uri);
+                  collectedSources.push({ title: gc.web.title || gc.web.uri, uri: gc.web.uri });
+                }
+              }
+            }
+          }
+
+          if (gotThought && !thoughtRafPending && performance.now() - lastThoughtFlush > 60) {
+            thoughtRafPending = true;
+            requestAnimationFrame(() => {
+              thoughtRafPending = false;
+              flushThoughtRaw();
+            });
+          }
+          if (gotAnswer) {
+            streamRenderer.update(fullAnswer);
+          }
+        }
+
+        if (fullAnswer) {
+          streamRenderer.finalize(fullAnswer);
+        } else {
+          answerEl.innerHTML = `<span style="color:var(--muted);">${t("noTextWarn")}</span>`;
+        }
+
+        finalizeThoughtDisplay();
+
+        if (collectedSources.length > 0) {
+          sourcesEl.classList.remove("hidden");
+          sourcesEl.innerHTML = `<span>${t("sourcesLabel")}</span>`;
+          collectedSources.forEach((s) => {
+            const a = document.createElement("a");
+            a.className = "source-link";
+            a.href = s.uri;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            a.textContent = s.title;
+            sourcesEl.appendChild(a);
+          });
+        }
+
+        if (latestUsage) {
+          const inp = latestUsage.promptTokenCount || 0;
+          const thk = latestUsage.thoughtsTokenCount || 0;
+          const out = latestUsage.candidatesTokenCount || 0;
+          const tot = latestUsage.totalTokenCount || (inp + thk + out);
+          state.lastContextTokens = inp + out;
+          state.sessionTotals.input += inp;
+          state.sessionTotals.thoughts += thk;
+          state.sessionTotals.output += out;
+          state.sessionTotals.total += tot;
+          renderTelemetry();
+        }
+
+        if (provider === "openrouter") {
+          syncOpenRouterKeyInfo(true);
+        }
+
+        statusEl.textContent = t("statusDone");
+        statusEl.style.color = "var(--green)";
+        if (state.viewingHistoryId === null && isNearBottom(liveBox, 160)) {
+          liveBox.scrollTop = liveBox.scrollHeight;
+        }
+        onComplete(fullAnswer, fullThought, latestUsage, false);
+      } catch (err) {
+        if (err.name === "AbortError") {
+          if (fullAnswer) streamRenderer.finalize(fullAnswer);
+          finalizeThoughtDisplay();
+          statusEl.textContent = t("statusStopped");
+          statusEl.style.color = "var(--amber)";
+          if (latestUsage) {
+            state.lastContextTokens = (latestUsage.promptTokenCount || 0) + (latestUsage.candidatesTokenCount || 0);
+            state.sessionTotals.input += latestUsage.promptTokenCount || 0;
+            state.sessionTotals.thoughts += latestUsage.thoughtsTokenCount || 0;
+            state.sessionTotals.output += latestUsage.candidatesTokenCount || 0;
+            state.sessionTotals.total += latestUsage.totalTokenCount || 0;
+            renderTelemetry();
+          }
+          onComplete(fullAnswer, fullThought, latestUsage, true);
+        } else {
+          finalizeThoughtDisplay();
+          statusEl.textContent = t("statusError");
+          statusEl.style.color = "var(--red)";
+
+          const isRateLimit = err.httpStatus === 429 || /quota|rate.?limit|429|exhausted/i.test(err.message || "");
+          if (provider === "gemini" && isRateLimit && !countedRpd) {
+            const store = loadRpdStore();
+            if (store.gemini.used < store.gemini.limit) {
+              store.gemini.used = store.gemini.limit;
+              saveRpdStore(store);
+              renderTelemetry();
+            }
+          }
+
+          const box = document.createElement("div");
+          box.className = "error-box";
+          box.innerHTML = `<div><strong>${t("statusError")}:</strong> <span></span></div>`;
+          box.querySelector("span").textContent = err.message;
+
+          if (provider === "gemini" && isRateLimit) {
+            const switchBtn = document.createElement("button");
+            switchBtn.className = "rpd-switch-btn";
+            switchBtn.style.alignSelf = "flex-start";
+            switchBtn.textContent = t("quickSwitchOR");
+            switchBtn.addEventListener("click", () => switchProvider("openrouter"));
+            box.appendChild(switchBtn);
+          }
+
+          answerEl.innerHTML = "";
+          answerEl.appendChild(box);
+          onComplete("", fullThought, latestUsage, true);
+        }
+      } finally {
+        state.isStreaming = false;
+        state.abortController = null;
+        $("btnRun").disabled = false;
+        $("btnStop").classList.add("hidden");
+        updateViewModeUI();
+      }
+    }
+
+    // =========================================================================
+    // 11. PROVIDER SWITCHING, MODALS & ACTIONS
+    // =========================================================================
+    function switchProvider(nextProvider) {
+      if (state.isStreaming) return;
+      state.provider = nextProvider;
+      localStorage.setItem(LS_KEYS.provider, nextProvider);
+      $("providerSelect").value = nextProvider;
+      populateModelSelect();
+      syncThinkingOptions();
+      updateSearchToggleUI();
+      refreshApiStatus();
+      renderTelemetry();
+      if (nextProvider === "openrouter") {
+        fetchOpenRouterFreeModels(false);
+        syncOpenRouterKeyInfo(true);
+      }
+    }
+
+    $("providerSelect").addEventListener("change", () => {
+      switchProvider($("providerSelect").value);
+    });
+
+    $("btnQuickSwitchOR").addEventListener("click", () => {
+      switchProvider("openrouter");
+      if (!getOrKey()) openApiModal("openrouter");
+    });
+
+    $("btnRefreshOrModels").addEventListener("click", () => {
+      fetchOpenRouterFreeModels(true);
+    });
+
+    $("modelSelect").addEventListener("change", () => {
+      if (state.provider === "openrouter") {
+        const val = $("modelSelect").value;
+        state.orSelectedModel = val;
+        localStorage.setItem(LS_KEYS.orSelectedModel, val);
+        $("customOrModelInput").classList.toggle("hidden", val !== "__custom__");
+        if (val === "__custom__") {
+          $("customOrModelInput").value = state.orCustomModel;
+          $("customOrModelInput").focus();
+        }
+      }
+      syncThinkingOptions();
+      renderTelemetry();
+    });
+
+    $("customOrModelInput").addEventListener("input", () => {
+      state.orCustomModel = $("customOrModelInput").value.trim();
+      localStorage.setItem(LS_KEYS.orCustomModel, state.orCustomModel);
+      renderTelemetry();
+    });
+
+    $("rpdCounter").addEventListener("click", async () => {
+      const store = loadRpdStore();
+      if (state.provider === "openrouter") {
+        await syncOpenRouterKeyInfo(false);
+        const updated = loadRpdStore();
+        const raw = prompt(t("rpdPromptOR"), String(updated.openrouter.used || 0));
+        if (raw === null) return;
+        const n = parseInt(raw, 10);
+        if (!Number.isNaN(n) && n >= 0) {
+          updated.openrouter.used = n;
+          saveRpdStore(updated);
+          renderTelemetry();
+        }
+      } else {
+        const raw = prompt(t("rpdPromptGemini"), String(store.gemini.used || 0));
+        if (raw === null) return;
+        const n = parseInt(raw, 10);
+        if (!Number.isNaN(n) && n >= 0) {
+          store.gemini.used = n;
+          saveRpdStore(store);
+          renderTelemetry();
+        }
+      }
+    });
+
+    let modalProvider = state.provider;
+    let pendingModalTier = getActiveTier();
+
+    function refreshApiModalFields() {
+      document.querySelectorAll("[data-modal-provider]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.modalProvider === modalProvider);
+      });
+
+      const isOr = modalProvider === "openrouter";
+      const savedKey = isOr ? getOrKey() : getGeminiKey();
+      $("apiKeyInput").value = savedKey;
+      $("apiKeyInput").placeholder = isOr ? "sk-or-v1-..." : "AIzaSy...";
+      $("modalApiKeyLabel").textContent = isOr ? t("lblApiKeyOR") : t("lblApiKeyGemini");
+      $("modalKeyStatusHint").textContent = savedKey ? `✓ ${t("keySavedBadge")}` : t("keyMissingBadge");
+      $("modalKeyStatusHint").style.color = savedKey ? "var(--green)" : "var(--muted)";
+
+      pendingModalTier = isOr ? state.orTier : state.apiTier;
+      $("btnTierPaid").textContent = isOr ? t("tierPaidOR") : t("tierPaidGemini");
+      $("modalTierNote").textContent = isOr ? t("tierNoteOR") : t("tierNoteGemini");
+      document.querySelectorAll("[data-tier]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tier === pendingModalTier);
+      });
+    }
+
+    function openApiModal(targetProvider) {
+      modalProvider = (targetProvider === "gemini" || targetProvider === "openrouter") ? targetProvider : state.provider;
+      $("apiKeyInput").type = "password";
+      $("btnToggleKey").textContent = t("show");
+      refreshApiModalFields();
+      $("apiDialog").showModal();
+    }
+
+    document.querySelectorAll("[data-modal-provider]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        modalProvider = btn.dataset.modalProvider;
+        refreshApiModalFields();
+      });
+    });
+
+    $("btnApiModal").addEventListener("click", () => openApiModal(state.provider));
+    $("btnCloseApi").addEventListener("click", () => $("apiDialog").close());
+    $("btnToggleKey").addEventListener("click", () => {
+      const inp = $("apiKeyInput");
+      const show = inp.type === "password";
+      inp.type = show ? "text" : "password";
+      $("btnToggleKey").textContent = show ? t("hide") : t("show");
+    });
+
+    document.querySelectorAll("[data-tier]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        pendingModalTier = btn.dataset.tier;
+        document.querySelectorAll("[data-tier]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+      });
+    });
+
+    $("btnSaveApi").addEventListener("click", () => {
+      const val = $("apiKeyInput").value.trim();
+
+      let saveTarget = modalProvider;
+      if (val.startsWith("sk-or-")) saveTarget = "openrouter";
+      else if (val.startsWith("AIza")) saveTarget = "gemini";
+
+      if (saveTarget === "openrouter") {
+        if (val) localStorage.setItem(LS_KEYS.orApiKey, val);
+        else localStorage.removeItem(LS_KEYS.orApiKey);
+        state.orTier = pendingModalTier;
+        localStorage.setItem(LS_KEYS.orTier, pendingModalTier);
+        if (val && state.provider !== "openrouter" && !getGeminiKey()) {
+          state.provider = "openrouter";
+          localStorage.setItem(LS_KEYS.provider, "openrouter");
+        }
+      } else {
+        if (val) localStorage.setItem(LS_KEYS.apiKey, val);
+        else localStorage.removeItem(LS_KEYS.apiKey);
+        state.apiTier = pendingModalTier;
+        localStorage.setItem(LS_KEYS.apiTier, pendingModalTier);
+        if (val && state.provider !== "gemini" && !getOrKey()) {
+          state.provider = "gemini";
+          localStorage.setItem(LS_KEYS.provider, "gemini");
+        }
+      }
+
+      $("apiDialog").close();
+      $("providerSelect").value = state.provider;
+      populateModelSelect();
+      syncThinkingOptions();
+      refreshApiStatus();
+      updateSearchToggleUI();
+      renderTelemetry();
+      if (state.provider === "openrouter" || saveTarget === "openrouter") {
+        syncOpenRouterKeyInfo(true);
+      }
+    });
+
+    $("btnClearApi").addEventListener("click", () => {
+      if (modalProvider === "openrouter") {
+        localStorage.removeItem(LS_KEYS.orApiKey);
+      } else {
+        localStorage.removeItem(LS_KEYS.apiKey);
+      }
+      $("apiKeyInput").value = "";
+      $("apiDialog").close();
+      refreshApiStatus();
+      renderTelemetry();
+    });
+
+    $("btnTemplateModal").addEventListener("click", () => {
+      const tpl = getTemplates();
+      $("tplSolInput").value = tpl.sol;
+      $("tplGenInput").value = tpl.gen;
+      $("tplRulesInput").value = tpl.rules;
+      $("tplRefInput").value = tpl.ref;
+      $("templateDialog").showModal();
+    });
+    $("btnCloseTemplate").addEventListener("click", () => $("templateDialog").close());
+    $("btnSaveTemplate").addEventListener("click", () => {
+      localStorage.setItem(LS_KEYS.solTpl, $("tplSolInput").value);
+      localStorage.setItem(LS_KEYS.genTpl, $("tplGenInput").value);
+      localStorage.setItem(LS_KEYS.rules, $("tplRulesInput").value);
+      localStorage.setItem(LS_KEYS.refCode, $("tplRefInput").value);
+      $("templateDialog").close();
+    });
+    $("btnResetTemplate").addEventListener("click", () => {
+      $("tplSolInput").value = DEFAULT_SOL_TEMPLATE;
+      $("tplGenInput").value = DEFAULT_GEN_TEMPLATE;
+      $("tplRulesInput").value = DEFAULT_RULES;
+      $("tplRefInput").value = DEFAULT_STYLE_REFERENCE;
+    });
+
+    $("langSelect").addEventListener("change", () => {
+      state.lang = $("langSelect").value;
+      localStorage.setItem(LS_KEYS.lang, state.lang);
+      applyLanguage();
+    });
+
+    $("btnBackToLive").addEventListener("click", switchToLiveView);
+    $("btnHeaderReturnLive").addEventListener("click", switchToLiveView);
+
+    $("btnRestoreHistory").addEventListener("click", () => {
+      const item = state.viewingHistoryItem;
+      if (!item) return;
+
+      if (state.isStreaming) {
+        if (!confirm(t("confirmStopToLoadHistory"))) return;
+        if (state.abortController) state.abortController.abort();
+      }
+
+      $("liveOutputScroll").innerHTML = "";
+      addUserCard($("liveOutputScroll"), `${t("lblHistoryTag")} | ${item.modelLabel}`, item.userText);
+      const card = createModelCard($("liveOutputScroll"), item.providerName || "AI", item.modelLabel);
+      card.querySelector(".status-text").textContent = t("statusSaved");
+      card.querySelector(".status-text").style.color = "var(--green)";
+      if (item.thoughtText) {
+        setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
+      }
+      renderMarkdownAsync(card.querySelector(".answer-body"), item.answerText);
+      if (item.usage) {
+        const tokEl = card.querySelector(".msg-tokens");
+        tokEl.textContent = formatUsageLine(item.usage);
+        tokEl.classList.remove("hidden");
+        state.lastContextTokens = (item.usage.promptTokenCount || 0) + (item.usage.candidatesTokenCount || 0);
+        state.sessionTotals = {
+          input: item.usage.promptTokenCount || 0,
+          thoughts: item.usage.thoughtsTokenCount || 0,
+          output: item.usage.candidatesTokenCount || 0,
+          total: item.usage.totalTokenCount || 0,
+        };
+      } else {
+        state.lastContextTokens = 0;
+        state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
+      }
+
+      state.initialUserParts = [{ text: item.userText }];
+      state.chatHistory = [{ role: "model", text: item.answerText }];
+      state.hasActiveSession = true;
+      state.sessionType = item.sessionType || "problem";
+      renderTelemetry();
+      switchToLiveView();
+    });
+
+    document.querySelectorAll("[data-input]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-input]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.inputType = btn.dataset.input;
+        ["statement", "pdf", "oi_code"].forEach((k) => {
+          $("input-" + k).classList.toggle("hidden", k !== state.inputType);
+        });
+        updateSearchToggleUI();
+      });
+    });
+
+    $("ideaText").addEventListener("input", () => {
+      state.modeNotes[state.mode] = $("ideaText").value;
+    });
+
+    document.querySelectorAll("[data-mode]").forEach((card) => {
+      card.addEventListener("click", () => {
+        state.modeNotes[state.mode] = $("ideaText").value;
+        document.querySelectorAll("[data-mode]").forEach((c) => c.classList.remove("active"));
+        card.classList.add("active");
+        state.mode = card.dataset.mode;
+        $("hintOptionBox").classList.toggle("hidden", state.mode !== "hint_sol");
+        $("codeOptionBox").classList.toggle("hidden", state.mode !== "code_gen");
+        $("ideaText").value = state.modeNotes[state.mode] || "";
+        updateModeDynamicText();
+      });
+    });
+
+    document.querySelectorAll("[data-hintopt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-hintopt]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.hintOption = btn.dataset.hintopt;
+      });
+    });
+
+    document.querySelectorAll("[data-codeopt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-codeopt]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.codeOption = btn.dataset.codeopt;
+      });
+    });
+
+    const dropzone = $("pdfDropzone");
+    const pdfInput = $("pdfFileInput");
+    dropzone.addEventListener("click", () => pdfInput.click());
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) loadPdfFile(e.dataTransfer.files[0]);
+    });
+    pdfInput.addEventListener("change", () => {
+      if (pdfInput.files.length) loadPdfFile(pdfInput.files[0]);
+    });
+
+    function loadPdfFile(file) {
+      if (!file.name.toLowerCase().endsWith(".pdf")) {
+        $("pdfStatus").style.color = "var(--red)";
+        $("pdfStatus").textContent = t("pdfBadType");
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        $("pdfStatus").style.color = "var(--red)";
+        $("pdfStatus").textContent = t("pdfTooBig");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.pdfBase64 = reader.result.split(",")[1];
+        state.pdfName = file.name;
+        $("pdfStatus").style.color = "var(--green)";
+        $("pdfStatus").textContent = `${t("pdfLoaded")} ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    $("btnStop").addEventListener("click", () => {
+      if (state.abortController) {
+        state.abortController.abort();
+        if (state.viewingHistoryId === null) $("followupInput").focus();
+      }
+    });
+
+    $("btnNewSession").addEventListener("click", () => {
+      if (state.isStreaming && state.abortController) state.abortController.abort();
+      state.hasActiveSession = false;
+      state.sessionType = "none";
+      state.initialUserParts = null;
+      state.chatHistory = [];
+      state.lastContextTokens = 0;
+      state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
+      state.modeNotes = { hint_sol: "", check_idea: "", code_gen: "" };
+      $("ideaText").value = "";
+      renderTelemetry();
+      switchToLiveView();
+      renderEmptyState();
+    });
+
+    $("btnClearHistory").addEventListener("click", () => {
+      localStorage.removeItem(LS_KEYS.history);
+      if (state.viewingHistoryId !== null) switchToLiveView();
+      renderHistoryList();
+    });
+
+    function currentModeBadge() {
+      if (state.mode === "hint_sol") return state.hintOption === "hint" ? t("optHint") : t("optSol");
+      if (state.mode === "check_idea") return t("modeCheckTitle");
+      return state.codeOption === "ref_code" ? t("optRefCode") : t("optTestGen");
+    }
+
+    function currentModelLabel() {
+      const info = getActiveModelInfo();
+      const lvl = $("thinkingSelect").value;
+      return info.supportsReasoning ? `${info.label} (${lvl})` : info.label;
+    }
+
+    function currentProviderTitle() {
+      return state.provider === "openrouter" ? "OpenRouter" : "Gemini";
+    }
+
+    function validateBeforeRun() {
+      if (!getActiveKey()) { openApiModal(state.provider); return false; }
+      if (state.provider === "openrouter" && $("modelSelect").value === "__custom__" && !$("customOrModelInput").value.trim()) {
+        alert(t("errNoCustomModel"));
+        $("customOrModelInput").focus();
+        return false;
+      }
+      return true;
+    }
+
+    async function handlePrimaryRun() {
+      if (state.isStreaming) return;
+      if (!validateBeforeRun()) return;
+      if (state.mode === "check_idea" && !$("ideaText").value.trim()) {
+        alert(t("errNoIdea"));
+        return;
+      }
+
+      if (state.viewingHistoryId !== null) {
+        switchToLiveView();
+      }
+
+      const useSearch = getActiveTier() === "paid" && $("searchToggle").checked;
+      const modelLabel = currentModelLabel();
+      const providerTitle = currentProviderTitle();
+      const badge = currentModeBadge();
+      const liveBox = $("liveOutputScroll");
+
+      if (state.sessionType === "problem" && state.initialUserParts) {
+        const nextTaskPrompt = buildTaskInstruction();
+        addUserCard(liveBox, badge, nextTaskPrompt);
+        const card = createModelCard(liveBox, providerTitle, modelLabel);
+
+        const contents = [{ role: "user", parts: state.initialUserParts }];
+        state.chatHistory.forEach((m) => contents.push({ role: m.role, parts: [{ text: m.text }] }));
+        contents.push({ role: "user", parts: [{ text: nextTaskPrompt }] });
+
+        await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+          state.chatHistory.push({ role: "user", text: nextTaskPrompt });
+          if (answerText) {
+            state.chatHistory.push({ role: "model", text: answerText });
+          } else if (aborted) {
+            const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
+            state.chatHistory.push({ role: "model", text: snippet });
+          } else {
+            state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+          }
+        });
+        return;
+      }
+
+      if (state.inputType === "statement" && !$("statementText").value.trim()) { alert(t("errNoStmt")); return; }
+      if (state.inputType === "oi_code" && !$("oiCodeInput").value.trim()) { alert(t("errNoOi")); return; }
+      if (state.inputType === "pdf" && !state.pdfBase64) { alert(t("errNoPdf")); return; }
+
+      const fullPrompt = `${buildProblemHeader()}\n\n${buildTaskInstruction()}`;
+      const parts = [];
+      if (state.inputType === "pdf") {
+        parts.push({ inlineData: { mimeType: "application/pdf", data: state.pdfBase64 } });
+      }
+      parts.push({ text: fullPrompt });
+
+      state.initialUserParts = parts;
+      state.chatHistory = [];
+      state.hasActiveSession = true;
+      state.sessionType = "problem";
+      state.lastContextTokens = 0;
+      state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
+      renderTelemetry();
+      updateViewModeUI();
+
+      const shortTitle =
+        state.inputType === "oi_code"
+          ? $("oiCodeInput").value.trim()
+          : state.inputType === "pdf"
+          ? `[PDF] ${state.pdfName}`
+          : $("statementText").value.trim().split("\n")[0];
+
+      const displayUserText =
+        state.inputType === "pdf" ? `[PDF: ${state.pdfName}]\n\n${fullPrompt}` : fullPrompt;
+
+      liveBox.innerHTML = "";
+      addUserCard(liveBox, badge, displayUserText);
+      const card = createModelCard(liveBox, providerTitle, modelLabel);
+
+      const contents = [{ role: "user", parts }];
+
+      await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+        if (answerText) {
+          state.chatHistory.push({ role: "model", text: answerText });
+          saveToHistory(shortTitle, modelLabel, displayUserText, answerText, thoughtText, usage, "problem", providerTitle);
+        } else if (aborted) {
+          const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
+          state.chatHistory.push({ role: "model", text: snippet });
+        } else {
+          state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+        }
+      });
+    }
+
+    $("btnRun").addEventListener("click", handlePrimaryRun);
+
+    async function sendFollowup() {
+      if (state.isStreaming || state.viewingHistoryId !== null) return;
+      if (!validateBeforeRun()) return;
+      const q = $("followupInput").value.trim();
+      if (!q) return;
+
+      $("followupInput").value = "";
+      const liveBox = $("liveOutputScroll");
+      const modelLabel = currentModelLabel();
+      const providerTitle = currentProviderTitle();
+      const useSearch = getActiveTier() === "paid" && $("searchToggle").checked;
+
+      if (!state.hasActiveSession || !state.initialUserParts) {
+        state.initialUserParts = [{ text: q }];
+        state.chatHistory = [];
+        state.hasActiveSession = true;
+        state.sessionType = "free_chat";
+        state.lastContextTokens = 0;
+        state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
+        renderTelemetry();
+        updateViewModeUI();
+
+        liveBox.innerHTML = "";
+        addUserCard(liveBox, t("userFreeChat"), q);
+        const card = createModelCard(liveBox, providerTitle, modelLabel);
+        const contents = [{ role: "user", parts: state.initialUserParts }];
+
+        await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+          if (answerText) {
+            state.chatHistory.push({ role: "model", text: answerText });
+            saveToHistory(q.split("\n")[0], modelLabel, q, answerText, thoughtText, usage, "free_chat", providerTitle);
+          } else if (aborted) {
+            const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
+            state.chatHistory.push({ role: "model", text: snippet });
+          } else {
+            state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+          }
+        });
+        return;
+      }
+
+      addUserCard(liveBox, t("userFollowup"), q);
+      const card = createModelCard(liveBox, providerTitle, modelLabel);
+
+      const contents = [{ role: "user", parts: state.initialUserParts }];
+      state.chatHistory.forEach((m) => contents.push({ role: m.role, parts: [{ text: m.text }] }));
+      contents.push({ role: "user", parts: [{ text: q }] });
+
+      await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
+        state.chatHistory.push({ role: "user", text: q });
+        if (answerText) {
+          state.chatHistory.push({ role: "model", text: answerText });
+        } else if (aborted) {
+          const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
+          state.chatHistory.push({ role: "model", text: snippet });
+        } else {
+          state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+        }
+      });
+    }
+
+    $("btnFollowup").addEventListener("click", sendFollowup);
+
+    $("followupInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        sendFollowup();
+      }
+    });
+
+    ["statementText", "ideaText", "pdfExtraText", "oiCodeInput"].forEach((id) => {
+      $(id).addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          handlePrimaryRun();
+        }
+      });
+    });
+
+    // Init
+    loadCachedOrModels();
+    applyLanguage();
+    fetchOpenRouterFreeModels(false);
+    if (getOrKey()) syncOpenRouterKeyInfo(true);
+  </script>
+</body>
+</html>
