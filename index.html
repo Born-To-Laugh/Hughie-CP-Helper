@@ -181,7 +181,7 @@
       border-color: var(--accent);
     }
 
-    #modelSelect { max-width: 250px; }
+    #modelSelect { max-width: 270px; }
     #customOrModelInput {
       height: 32px;
       width: 190px;
@@ -1175,15 +1175,15 @@ Query cand by query tin-tout, then check
     };
 
     const FALLBACK_OR_FREE_MODELS = [
-      { id: "nvidia/nemotron-3-ultra:free", name: "Nemotron 3 Ultra (free)", contextLength: 1048576, supportsReasoning: true, score: 95 },
-      { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (free)", contextLength: 1048576, supportsReasoning: true, score: 92 },
-      { id: "particle-ai/particle-1:free", name: "Particle-1 [DeepSeek V4.1 Flash] (free)", contextLength: 1048576, supportsReasoning: true, score: 94 },
-      { id: "inclusionai/ling-3.2-flash:free", name: "Ling 3.2 Flash (free)", contextLength: 1048576, supportsReasoning: true, score: 88 },
-      { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (free)", contextLength: 262144, supportsReasoning: true, score: 85 },
-      { id: "baidu/ernie-5.5-flash-preview:free", name: "ERNIE 5.5 Flash Preview (free)", contextLength: 1048576, supportsReasoning: true, score: 82 },
-      { id: "openrouter/free", name: "OpenRouter Free Auto-Router", contextLength: 200000, supportsReasoning: true, score: 75 },
+      { id: "nvidia/nemotron-3-ultra:free", name: "Nemotron 3 Ultra (free)", contextLength: 1048576, supportsReasoning: true, inIntel: true, inProg: true, score: 130 },
+      { id: "particle-ai/particle-1:free", name: "Particle-1 [DeepSeek V4.1 Flash] (free)", contextLength: 1048576, supportsReasoning: true, inIntel: true, inProg: true, score: 128 },
+      { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (free)", contextLength: 1048576, supportsReasoning: true, inIntel: true, inProg: true, score: 120 },
+      { id: "inclusionai/ling-3.2-flash:free", name: "Ling 3.2 Flash (free)", contextLength: 1048576, supportsReasoning: true, inIntel: true, inProg: true, score: 110 },
+      { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (free)", contextLength: 262144, supportsReasoning: true, inIntel: true, inProg: true, score: 105 },
+      { id: "openrouter/free", name: "OpenRouter Free Auto-Router", contextLength: 200000, supportsReasoning: true, inIntel: false, inProg: false, score: 72 },
     ];
 
+    const OR_CACHE_VERSION = 2;
     const OR_MODELS_CACHE_TTL = 6 * 60 * 60 * 1000;
     const DEFAULT_GEMINI_FREE_RPD = 20;
     const DEFAULT_OR_FREE_RPD = 50;
@@ -1344,7 +1344,7 @@ Query cand by query tin-tout, then check
         rpdSynced: "Đã đồng bộ RPD từ OpenRouter!",
         quickSwitchOR: "Dùng OpenRouter (:free)",
         orCustomOpt: "✎ Nhập Model ID khác...",
-        orRefreshBtnTip: "Cập nhật danh sách model :free mới nhất từ OpenRouter",
+        orRefreshBtnTip: "Cập nhật xếp hạng thật (Intelligence Index + Programming + Top Weekly) từ OpenRouter",
       },
       en: {
         btnTemplate: "Templates",
@@ -1480,7 +1480,7 @@ Query cand by query tin-tout, then check
         rpdSynced: "Synced RPD from OpenRouter!",
         quickSwitchOR: "Switch to OpenRouter (:free)",
         orCustomOpt: "✎ Custom Model ID...",
-        orRefreshBtnTip: "Refresh live :free CP models from OpenRouter",
+        orRefreshBtnTip: "Refresh live rankings (Intelligence Index + Programming + Top Weekly) from OpenRouter",
       },
     };
 
@@ -1616,32 +1616,66 @@ Query cand by query tin-tout, then check
     }
 
     // =========================================================================
-    // 6. OPENROUTER FREE CP MODELS DISCOVERY & RANKING
+    // 6. OPENROUTER LIVE BENCHMARK & CATEGORY RANKING (ZERO RPD COST)
     // =========================================================================
-    function scoreOpenRouterFreeModel(m) {
+    function scoreOpenRouterFreeModel(m, rankings = {}) {
       const id = (m.id || "").toLowerCase();
       const name = (m.name || "").toLowerCase();
       const params = Array.isArray(m.supported_parameters) ? m.supported_parameters : [];
       const supportsReasoning = params.includes("reasoning") || params.includes("reasoning_effort");
       const ctx = Number(m.context_length || 0);
 
-      let score = 0;
-      if (id === "openrouter/free") return { score: 75, supportsReasoning: true };
+      if (id === "openrouter/free") {
+        return { score: 72, supportsReasoning: true, inIntel: false, inProg: false };
+      }
 
-      if (supportsReasoning) score += 40;
-      if (/deepseek|particle|qwen|kimi|glm|nemotron-3|gemma-4|cohere.*code|ling-3|ernie-5/.test(id)) score += 25;
-      if (/coder|code|reasoning|thinking|math|ultra|pro|super|lightning|flash/.test(id + " " + name)) score += 15;
+      let score = 0;
+
+      // 1. Live Artificial Analysis Intelligence Index rank (from OpenRouter server)
+      const iRank = rankings.intelRank?.get(m.id);
+      const inIntel = typeof iRank === "number";
+      if (inIntel) {
+        const total = Math.max(1, rankings.intelTotal || 100);
+        score += Math.round(25 + 45 * (1 - iRank / total)); // +25 to +70
+      }
+
+      // 2. Live OpenRouter Programming category rank
+      const pRank = rankings.progRank?.get(m.id);
+      const inProg = typeof pRank === "number";
+      if (inProg) {
+        const total = Math.max(1, rankings.progTotal || 80);
+        score += Math.round(12 + 18 * (1 - pRank / total)); // +12 to +30
+      }
+
+      // 3. Live weekly token usage popularity on OpenRouter
+      const wRank = rankings.weeklyRank?.get(m.id);
+      if (typeof wRank === "number") {
+        const total = Math.max(1, rankings.weeklyTotal || 100);
+        score += Math.round(4 + 12 * (1 - wRank / total)); // +4 to +16
+      }
+
+      // 4. Objective CP capabilities
+      if (supportsReasoning) score += 28;
       if (ctx >= 200000) score += 10;
       else if (ctx >= 100000) score += 5;
-      if (/\b(1b|1\.7b|2b|3b|4b|7b|8b|nano)\b/.test(id + " " + name)) score -= 22;
 
-      return { score, supportsReasoning };
+      // Fallback boost only if server ranking endpoints didn't return anything
+      if (!inIntel && !inProg) {
+        if (/coder|code|reasoning|thinking|math|ultra|pro/i.test(id + " " + name)) score += 12;
+      }
+
+      // Penalize very small models unless they actually placed on Intelligence Index
+      if (!inIntel && /\b(1b|1\.7b|2b|3b|4b|7b|8b|nano)\b/i.test(id + " " + name)) {
+        score -= 20;
+      }
+
+      return { score, supportsReasoning, inIntel, inProg };
     }
 
     function loadCachedOrModels() {
       try {
         const raw = JSON.parse(localStorage.getItem(LS_KEYS.orModelsCache) || "null");
-        if (raw && Array.isArray(raw.models) && raw.models.length > 0) {
+        if (raw && raw.version === OR_CACHE_VERSION && Array.isArray(raw.models) && raw.models.length > 0) {
           state.orModels = raw.models;
           return Date.now() - (raw.ts || 0) < OR_MODELS_CACHE_TTL;
         }
@@ -1657,10 +1691,40 @@ Query cand by query tin-tout, then check
       const btn = $("btnRefreshOrModels");
       if (btn) btn.disabled = true;
       try {
-        const res = await fetch("https://openrouter.ai/api/v1/models");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        const all = Array.isArray(json?.data) ? json.data : [];
+        const fetchJson = async (url) => {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const j = await r.json();
+          return Array.isArray(j?.data) ? j.data : [];
+        };
+
+        const [allRes, intelRes, progRes, weeklyRes] = await Promise.allSettled([
+          fetchJson("https://openrouter.ai/api/v1/models"),
+          fetchJson("https://openrouter.ai/api/v1/models?sort=intelligence-high-to-low&min_intelligence_index=1"),
+          fetchJson("https://openrouter.ai/api/v1/models?category=programming"),
+          fetchJson("https://openrouter.ai/api/v1/models?sort=top-weekly"),
+        ]);
+
+        const all = allRes.status === "fulfilled" && allRes.value.length ? allRes.value : [];
+        if (!all.length) throw new Error("Empty OpenRouter catalog");
+
+        const intelRank = new Map();
+        const intelList = intelRes.status === "fulfilled" ? intelRes.value : [];
+        intelList.forEach((m, i) => {
+          if (m?.id && !intelRank.has(m.id)) intelRank.set(m.id, i);
+        });
+
+        const progRank = new Map();
+        const progList = progRes.status === "fulfilled" ? progRes.value : [];
+        progList.forEach((m, i) => {
+          if (m?.id && !progRank.has(m.id)) progRank.set(m.id, i);
+        });
+
+        const weeklyRank = new Map();
+        const weeklyList = weeklyRes.status === "fulfilled" ? weeklyRes.value : [];
+        weeklyList.forEach((m, i) => {
+          if (m?.id && !weeklyRank.has(m.id)) weeklyRank.set(m.id, i);
+        });
 
         const freeText = all
           .filter((m) => {
@@ -1678,13 +1742,22 @@ Query cand by query tin-tout, then check
             return true;
           })
           .map((m) => {
-            const { score, supportsReasoning } = scoreOpenRouterFreeModel(m);
+            const { score, supportsReasoning, inIntel, inProg } = scoreOpenRouterFreeModel(m, {
+              intelRank,
+              intelTotal: intelList.length,
+              progRank,
+              progTotal: progList.length,
+              weeklyRank,
+              weeklyTotal: weeklyList.length,
+            });
             return {
               id: m.id,
               name: m.name || m.id,
               contextLength: Number(m.context_length || 131072),
               maxCompletionTokens: Number(m.top_provider?.max_completion_tokens || 0),
               supportsReasoning,
+              inIntel,
+              inProg,
               created: Number(m.created || 0),
               score,
             };
@@ -1694,7 +1767,10 @@ Query cand by query tin-tout, then check
         if (freeText.length > 0) {
           state.orModels = freeText;
           try {
-            localStorage.setItem(LS_KEYS.orModelsCache, JSON.stringify({ ts: Date.now(), models: freeText }));
+            localStorage.setItem(
+              LS_KEYS.orModelsCache,
+              JSON.stringify({ ts: Date.now(), version: OR_CACHE_VERSION, models: freeText })
+            );
           } catch {}
         }
       } catch {
@@ -1774,6 +1850,8 @@ Query cand by query tin-tout, then check
         opt.value = m.id;
         const star = idx < 6 && m.score >= 70 ? "★ " : "";
         const badges = [];
+        if (m.inIntel) badges.push("AA");
+        if (m.inProg) badges.push("Code");
         if (m.supportsReasoning) badges.push("Think");
         const ctxStr = formatCtxBadge(m.contextLength);
         if (ctxStr) badges.push(ctxStr);
@@ -2168,7 +2246,6 @@ ${tpl.gen.trim()}
         cur.push(line);
 
         if (line.trim() === "" && !inFence && !inDisplayMath && cur.length > 0) {
-          // Look ahead to next non-empty line to avoid breaking numbered/bulleted lists or blockquotes
           let nextNonEmpty = "";
           for (let j = i + 1; j < lines.length; j++) {
             if (lines[j].trim() !== "") {
@@ -2282,7 +2359,6 @@ ${tpl.gen.trim()}
       }
     }
 
-    // Non-blocking frame-budgeted async renderer for large thinking blocks & history
     function renderMarkdownAsync(container, rawMarkdown, options = {}) {
       const token = (container._asyncRenderToken = (container._asyncRenderToken || 0) + 1);
       if (!rawMarkdown) {
@@ -2319,7 +2395,6 @@ ${tpl.gen.trim()}
       requestAnimationFrame(step);
     }
 
-    // Incremental block-cached streaming renderer for answers
     function createStreamRenderer(container, scrollParent) {
       let lastRenderTime = 0;
       let lastRenderCost = 0;
@@ -2333,7 +2408,6 @@ ${tpl.gen.trim()}
         const stickToBottom = scrollParent && state.viewingHistoryId === null && isNearBottom(scrollParent);
         const start = performance.now();
 
-        // Remove excess trailing chunks if text shrank
         while (container.children.length > blocks.length) {
           container.lastElementChild.remove();
         }
@@ -2438,7 +2512,8 @@ ${tpl.gen.trim()}
     }
 
     function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem", providerName = "Gemini") {
-      const list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]");
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(LS_KEYS.history) || "[]"); } catch {}
       const safeThought = thoughtText && thoughtText.length > 80000 ? thoughtText.slice(0, 80000) + "\n...[truncated]" : (thoughtText || "");
       list.unshift({
         id: Date.now(),
