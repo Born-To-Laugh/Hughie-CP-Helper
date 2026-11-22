@@ -1058,6 +1058,10 @@
             <div class="mode-title" data-i18n="modeCodeGenTitle">Reference Code / Generate Test</div>
             <div class="mode-desc" data-i18n="modeCodeGenDesc">Code with /* */ summary &amp; commented gentest()</div>
           </button>
+          <button class="mode-card" data-mode="debug_opt">
+            <div class="mode-title" data-i18n="modeDebugOptTitle">Debug / Optimize</div>
+            <div class="mode-desc" data-i18n="modeDebugOptDesc">Find bugs (WA/RE) or optimize TLE/MLE (keep maxn &amp; globals)</div>
+          </button>
         </div>
       </div>
 
@@ -1077,6 +1081,21 @@
           <button class="seg-btn active" data-codeopt="ref_code" data-i18n="optRefCode">Reference Code</button>
           <button class="seg-btn" data-codeopt="test_gen" data-i18n="optTestGen">Generate Test</button>
         </div>
+      </div>
+
+      <!-- 2 Options for Debug / Optimize -->
+      <div id="debugOptionBox" class="hidden">
+        <div class="section-label"><span data-i18n="lblDebugOpt">Debug / Optimize Option</span></div>
+        <div class="segmented cols-2">
+          <button class="seg-btn active" data-debugopt="debug" data-i18n="optDebug">Debug</button>
+          <button class="seg-btn" data-debugopt="optimize" data-i18n="optOptimize">Optimize</button>
+        </div>
+      </div>
+
+      <!-- Code Input for Debug / Optimize -->
+      <div id="debugCodeBox" class="hidden">
+        <div class="section-label"><span data-i18n="lblDebugCode">Code to Debug / Optimize</span></div>
+        <textarea id="debugCodeText" class="mono-area" rows="6"></textarea>
       </div>
 
       <!-- Notes / Idea Input -->
@@ -1423,6 +1442,16 @@ Query cand by query tin-tout, then check
         modeCheckDesc: "Xác nhận đúng/sai, đánh giá logic, phản chứng & gợi ý hướng đúng",
         modeCodeGenTitle: "Code mẫu / Sinh test",
         modeCodeGenDesc: "Tận dụng sol đã biết để code C++ chuẩn style & gentest()",
+        modeDebugOptTitle: "Debug / Optimize",
+        modeDebugOptDesc: "Tìm lỗi (WA/RE/CE) hoặc tối ưu TLE/MLE (giữ kiểu maxn & global)",
+        lblDebugOpt: "Tuỳ chọn Debug / Optimize",
+        optDebug: "Debug",
+        optOptimize: "Optimize",
+        lblDebugCode: "Code cần Debug / Optimize",
+        phDebugCode: "Dán code C++ của bạn vào đây...",
+        lblDebugNote: "Mã lỗi / Tình trạng (WA, TLE, MLE, RE...)",
+        phDebugNote: "VD: Bị TLE ở subtask 3 (N = 2e5, TL 1s), hoặc WA test 14, hoặc MLE vượt 256MB...",
+        errNoDebugCode: "Bạn chưa dán code vào khung Debug / Optimize.",
         lblHintOpt: "Tuỳ chọn Hint / Solution",
         optHint: "Hint",
         optSol: "Solution",
@@ -1573,6 +1602,16 @@ Query cand by query tin-tout, then check
         modeCheckDesc: "Confirm right/wrong, critique logic, counterexamples & right direction",
         modeCodeGenTitle: "Reference Code / Generate Test",
         modeCodeGenDesc: "Reuse established solution to write C++ code & gentest()",
+        modeDebugOptTitle: "Debug / Optimize",
+        modeDebugOptDesc: "Find bugs (WA/RE/CE) or optimize TLE/MLE (keep maxn & globals)",
+        lblDebugOpt: "Debug / Optimize Option",
+        optDebug: "Debug",
+        optOptimize: "Optimize",
+        lblDebugCode: "Code to Debug / Optimize",
+        phDebugCode: "Paste your C++ code here...",
+        lblDebugNote: "Error / Verdict Note (WA, TLE, MLE, RE...)",
+        phDebugNote: "e.g. TLE on subtask 3 (N = 2e5, TL 1s), WA on test 14, or MLE > 256MB...",
+        errNoDebugCode: "Please paste your code into the Debug / Optimize box.",
         lblHintOpt: "Hint / Solution Option",
         optHint: "Hint",
         optSol: "Solution",
@@ -1703,7 +1742,8 @@ Query cand by query tin-tout, then check
       mode: "hint_sol",
       hintOption: "hint",
       codeOption: "ref_code",
-      modeNotes: { summarize: "", hint_sol: "", check_idea: "", code_gen: "" },
+      debugOption: "debug",
+      modeNotes: { summarize: "", hint_sol: "", check_idea: "", code_gen: "", debug_opt: "" },
       pdfBase64: null,
       pdfName: null,
       images: [],
@@ -2190,6 +2230,7 @@ Query cand by query tin-tout, then check
       $("pdfExtraText").placeholder = t("phPdfExtra");
       $("imgExtraText").placeholder = t("phImgExtra");
       $("oiCodeInput").placeholder = t("phOiCode");
+      $("debugCodeText").placeholder = t("phDebugCode");
 
       const opts = $("thinkingSelect").options;
       opts[0].textContent = t("thinkLow");
@@ -2224,6 +2265,10 @@ Query cand by query tin-tout, then check
         $("ideaBoxLabel").textContent = t("lblSummarizeNote");
         $("ideaText").placeholder = t("phSummarizeNote");
         $("ideaText").rows = 2;
+      } else if (state.mode === "debug_opt") {
+        $("ideaBoxLabel").textContent = t("lblDebugNote");
+        $("ideaText").placeholder = t("phDebugNote");
+        $("ideaText").rows = 3;
       } else {
         $("ideaBoxLabel").textContent = t("lblCodeNotes");
         $("ideaText").placeholder = t("phCodeNotes");
@@ -2343,7 +2388,7 @@ ${langDirective}
 ================================================================
 - Obey the exact scope of the user's current request.
 - NEVER output C++ code, code templates, pseudo-code implementations, or \`gentest()\` during **Problem Summary**, **Hint**, **Full Solution**, or **Check Idea** unless the user explicitly asks for code in a follow-up message.
-- Only output full C++ code or \`gentest()\` when the active task explicitly requests **Reference Code** or **Generate Test** (or when explicitly requested in a follow-up).
+- Only output full C++ code or \`gentest()\` when the active task explicitly requests **Reference Code** or **Generate Test** (or when explicitly requested in a follow-up). During **Debug / Optimize**, you may show targeted fixed/optimized code snippets (keeping \`maxn\` and global arrays) as requested by the task.
 - Multi-turn continuity: If the user previously asked for **Full Solution** (or discussed/verified the solution) earlier in this conversation and now asks for **Reference Code** or **Generate Test**, directly reuse and implement that already-established solution rather than re-deriving from scratch.
 
 ================================================================
@@ -2359,7 +2404,7 @@ ${langDirective}
 ================================================================
 3. MANDATORY C++ CODING STYLE & TEMPLATES (ONLY WHEN WRITING CODE)
 ================================================================
-Whenever a task DOES require writing C++ code or \`gentest()\`, strictly obey all rules below without exception:
+Whenever a task DOES require writing or refactoring C++ code or \`gentest()\`, strictly obey all rules below without exception:
 ${tpl.rules}
 
 Study Hughie Do's exact C++ style exemplar below (including the final /* ... */ summary comment block at the very bottom!) and replicate its spacing, brace placement, global array naming (maxn), macro usage (alle, fi, se), and bottom comment block faithfully:
@@ -2448,6 +2493,25 @@ ${tpl.gen.trim()}
         return isVi
           ? `### Yêu cầu: KIỂM CHỨNG Ý TƯỞNG / CÔNG THỨC\nNội dung cần kiểm chứng:\n\`\`\`\n${noteText}\n\`\`\`\n**QUY TẮC BẮT BUỘC:** Không viết full code mẫu (nếu cần minh hoạ một đoạn ngắn thì bọc trong \`\`\`cpp ... \`\`\`). Trình bày bằng Markdown súc tích theo đúng 4 mục:\n1. **Kết luận kiểm chứng:** Khẳng định rõ ngay dòng đầu tiên: **ĐÚNG (AC)**, **ĐÚNG Ý TƯỞNG NHƯNG CHƯA TỐI ƯU (TLE/MLE)**, hoặc **CHƯA ĐÚNG / SAI (WA)**.\n2. **Đánh giá chi tiết:** Phân tích điểm hợp lý, lỗ hổng logic, các trường hợp biên (corner cases) và đánh giá độ phức tạp Time/Space theo ràng buộc.\n3. **Test phản chứng (nếu sai/thiếu):** Đưa ra 1 test nhỏ nhất làm ý tưởng bị sai và giải thích output đúng vs output theo ý tưởng.\n4. **Gợi ý hướng nghĩ đúng:** Đưa ra định hướng / nhận xét giúp sửa lại cho đúng hoặc tối ưu để AC (chưa cần viết full code).`
           : `### Task: VERIFY IDEA / FORMULA\nDraft to verify:\n\`\`\`\n${noteText}\n\`\`\`\n**MANDATORY RULE:** Do not write full sample code (if showing a tiny snippet, wrap it in \`\`\`cpp ... \`\`\`). Present in concise Markdown with these 4 sections:\n1. **Verification Verdict:** State clearly on the very first line: **CORRECT (AC)**, **VALID IDEA BUT SUBOPTIMAL (TLE/MLE)**, or **INCORRECT / INCOMPLETE (WA)**.\n2. **Detailed Evaluation:** Analyze sound parts, logical flaws, corner cases, and Time/Space complexity against constraints.\n3. **Counterexample (if flawed):** Provide the smallest counterexample test showing why it fails.\n4. **Guidance Toward the Right Direction:** Give clear hints/direction to fix or optimize the idea to AC without dumping full code.`;
+      }
+
+      if (state.mode === "debug_opt") {
+        const userCode = $("debugCodeText").value.trim();
+        const noteBlock = noteText
+          ? isVi
+            ? `\n\nThông tin lỗi / tình trạng từ người dùng (Verdict / TLE / MLE / Ghi chú):\n\`\`\`\n${noteText}\n\`\`\``
+            : `\n\nError / Verdict report from user (WA / TLE / MLE / Notes):\n\`\`\`\n${noteText}\n\`\`\``
+          : "";
+
+        if (state.debugOption === "debug") {
+          return isVi
+            ? `### Yêu cầu: DEBUG CODE (TÌM LỖI & GỢI Ý SỬA)\nCode C++ cần debug:\n\`\`\`cpp\n${userCode}\n\`\`\`${noteBlock}\n\nHãy kiểm tra kỹ code trên đối chiếu với đề bài & thông tin lỗi (nếu có), và trình bày súc tích theo đúng 4 mục:\n1. **Vị trí lỗi (Bug Locations):** Chỉ rõ từng lỗi đang nằm ở hàm/dòng nào (WA logic, tràn số \`int\`/\`ll\`, out-of-bounds, sai khởi tạo/reset giữa các test, modulo âm, corner case, UB...).\n2. **Nguyên nhân & Test làm sai:** Giải thích ngắn gọn tại sao đoạn đó gây ra lỗi/verdict nêu trên (nếu có thể hãy đưa ra 1 test nhỏ làm code chạy sai).\n3. **Gợi ý hướng giải quyết:** Chỉ rõ cách sửa từng chỗ cho đúng; nếu cần minh hoạ đoạn code sửa thì giữ đúng phong cách \`const int maxn = ...;\`, biến/mảng toàn cục (global), không space trước \`{\` hay sau \`if\`/\`for\`/\`while\`.\n4. **Lưu ý thêm (nếu có):** Kiểm tra nhanh xem sau khi sửa bug thì Time/Space đã an toàn chưa.`
+            : `### Task: DEBUG CODE (LOCATE BUGS & FIX GUIDANCE)\nC++ code to debug:\n\`\`\`cpp\n${userCode}\n\`\`\`${noteBlock}\n\nCarefully audit this code against the problem constraints and error report, and respond concisely in these 4 sections:\n1. **Bug Locations:** Pinpoint the exact function/lines containing each bug (logic error, \`int\`/\`ll\` overflow, out-of-bounds, unreset globals, negative modulo, corner cases, UB, etc.).\n2. **Root Cause & Failing Case:** Briefly explain why it causes the reported verdict/error (provide a minimal counterexample test if applicable).\n3. **Fix Guidance:** Explain clearly how to fix each bug; any illustrative code snippet MUST preserve Hughie Do's \`const int maxn = ...;\` and global array style (no space before \`{\` or after \`if\`/\`for\`/\`while\`).\n4. **Sanity Check:** Briefly verify whether Time/Space complexity is safe once fixed.`;
+        }
+
+        return isVi
+          ? `### Yêu cầu: OPTIMIZE CODE (TỐI ƯU THỜI GIAN / KHÔNG GIAN)\nCode C++ cần tối ưu:\n\`\`\`cpp\n${userCode}\n\`\`\`${noteBlock}\n\n**RÀNG BUỘC PHONG CÁCH BẮT BUỘC:** Khi đề xuất cải tiến hoặc viết lại đoạn code tối ưu, **VẪN PHẢI giữ cách cài đặt dùng \`const int maxn = ...;\` và khai báo biến/mảng toàn cục (global)** (bộ nhớ chỉ cần tối ưu vừa đủ để qua Memory Limit của đề, không cần ép bỏ mảng global nếu vẫn vừa ML).\nHãy phân tích và trình bày súc tích theo đúng 4 mục:\n1. **Đánh giá Time & Space hiện tại:** Tính chính xác độ phức tạp và tổng bộ nhớ thực tế (MB) các mảng global đang chiếm so với TL/ML.\n2. **Điểm nghẽn (Bottlenecks):** Chỉ rõ những chỗ đang gây TLE (độ phức tạp lớn, hằng số cao, \`vector\`/\`map\`/\`set\` lồng nhau, copy thừa, I/O chậm, đệ quy sâu...) hoặc MLE (kiểu dữ liệu thừa bit như \`ll\` -> \`int\`, mảng 2D quá lớn, bảng thưa / SegTree cấp phát dư...).\n3. **Các hướng tối ưu cụ thể:** Đề xuất từng cách làm / cách cài đặt tốt hơn cả về thuật toán lẫn hằng số (kèm ước lượng cải thiện).\n4. **Đoạn code tối ưu mẫu (theo đúng style \`maxn\` & global):** Viết phần code cải tiến (hoặc cấu trúc lại những hàm bottleneck) tuân thủ nghiêm ngặt quy tắc \`maxn\`, global, không space trước \`{\` hay sau \`if\`/\`for\`/\`while\`.`
+          : `### Task: OPTIMIZE CODE (TIME / SPACE)\nC++ code to optimize:\n\`\`\`cpp\n${userCode}\n\`\`\`${noteBlock}\n\n**MANDATORY STYLE CONSTRAINT:** When suggesting improvements or refactored code, **MUST preserve \`const int maxn = ...;\` and global array/variable style** (only optimize memory enough to safely pass the Memory Limit — do not abandon global arrays if they fit within ML).\nAnalyze and present concisely in these 4 sections:\n1. **Current Time & Space Audit:** State exact complexity and estimated actual memory usage (MB) of global arrays vs TL/ML.\n2. **Bottlenecks:** Pinpoint what causes TLE (suboptimal complexity, high constant factor, heavy containers \`map\`/\`set\`/\`vector\`, unnecessary copies, slow I/O...) or MLE (oversized types \`ll\` -> \`int\`, excessive 2D arrays, over-allocated trees...).\n3. **Optimization Strategies:** Detail concrete algorithmic and implementation-level improvements.\n4. **Optimized Code Snippets (strict \`maxn\` & global style):** Show the improved parts strictly following \`maxn\`, global declarations, and Hughie's brace/keyword spacing.`;
       }
 
       if (state.codeOption === "ref_code") {
@@ -3638,6 +3702,8 @@ ${tpl.gen.trim()}
         state.mode = card.dataset.mode;
         $("hintOptionBox").classList.toggle("hidden", state.mode !== "hint_sol");
         $("codeOptionBox").classList.toggle("hidden", state.mode !== "code_gen");
+        $("debugOptionBox").classList.toggle("hidden", state.mode !== "debug_opt");
+        $("debugCodeBox").classList.toggle("hidden", state.mode !== "debug_opt");
         $("ideaText").value = state.modeNotes[state.mode] || "";
         updateModeDynamicText();
       });
@@ -3656,6 +3722,14 @@ ${tpl.gen.trim()}
         document.querySelectorAll("[data-codeopt]").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         state.codeOption = btn.dataset.codeopt;
+      });
+    });
+
+    document.querySelectorAll("[data-debugopt]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-debugopt]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.debugOption = btn.dataset.debugopt;
       });
     });
 
@@ -3822,10 +3896,11 @@ ${tpl.gen.trim()}
       state.chatHistory = [];
       state.lastContextTokens = 0;
       state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
-      state.modeNotes = { summarize: "", hint_sol: "", check_idea: "", code_gen: "" };
+      state.modeNotes = { summarize: "", hint_sol: "", check_idea: "", code_gen: "", debug_opt: "" };
       state.images = [];
       renderImagePreviews();
       $("ideaText").value = "";
+      $("debugCodeText").value = "";
       renderTelemetry();
       switchToLiveView();
       renderEmptyState();
@@ -3841,6 +3916,7 @@ ${tpl.gen.trim()}
       if (state.mode === "summarize") return t("modeSummarizeTitle");
       if (state.mode === "hint_sol") return state.hintOption === "hint" ? t("optHint") : t("optSol");
       if (state.mode === "check_idea") return t("modeCheckTitle");
+      if (state.mode === "debug_opt") return state.debugOption === "debug" ? t("optDebug") : t("optOptimize");
       return state.codeOption === "ref_code" ? t("optRefCode") : t("optTestGen");
     }
 
@@ -3869,6 +3945,11 @@ ${tpl.gen.trim()}
       if (!validateBeforeRun()) return;
       if (state.mode === "check_idea" && !$("ideaText").value.trim()) {
         alert(t("errNoIdea"));
+        return;
+      }
+      if (state.mode === "debug_opt" && !$("debugCodeText").value.trim()) {
+        alert(t("errNoDebugCode"));
+        $("debugCodeText").focus();
         return;
       }
 
@@ -4037,7 +4118,7 @@ ${tpl.gen.trim()}
       }
     });
 
-    ["statementText", "ideaText", "pdfExtraText", "imgExtraText", "oiCodeInput"].forEach((id) => {
+    ["statementText", "ideaText", "debugCodeText", "pdfExtraText", "imgExtraText", "oiCodeInput"].forEach((id) => {
       $(id).addEventListener("keydown", (e) => {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
