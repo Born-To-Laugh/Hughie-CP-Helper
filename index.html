@@ -306,6 +306,7 @@
       border-radius: 6px;
     }
     .segmented.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .segmented.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .segmented.cols-2 { grid-template-columns: repeat(2, 1fr); }
 
     .seg-btn {
@@ -353,6 +354,48 @@
       border-color: var(--accent);
       background: var(--accent-tint);
       color: var(--text-strong);
+    }
+
+    .img-preview-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .img-thumb-wrap {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+      background: var(--bg-input);
+      aspect-ratio: 4 / 3;
+    }
+    .img-thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .img-remove-btn {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border-radius: 4px;
+      background: rgba(10, 14, 24, 0.82);
+      color: #f0f6fc;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      font-size: 12px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-remove-btn:hover {
+      border-color: var(--red);
+      color: var(--red);
     }
 
     .mode-list {
@@ -652,6 +695,16 @@
       border-left: 2px solid var(--border-active);
       color: var(--text-soft);
     }
+    .markdown-body .io-schema-box {
+      margin: 8px 0;
+      padding: 8px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 5px;
+      color: var(--text-strong);
+      line-height: 1.75;
+    }
 
     .markdown-body .katex-display {
       overflow-x: auto;
@@ -933,9 +986,10 @@
           <span data-i18n="lblInputFormat">1. Problem Format</span>
           <span id="sessionIndicator" class="session-pill hidden"></span>
         </div>
-        <div class="segmented cols-3">
+        <div class="segmented cols-4">
           <button class="seg-btn active" data-input="statement" data-i18n="tabStatement">Statement</button>
           <button class="seg-btn" data-input="pdf" data-i18n="tabPdf">PDF</button>
+          <button class="seg-btn" data-input="image" data-i18n="tabImage">Image</button>
           <button class="seg-btn" data-input="oi_code" data-i18n="tabOi">OI Code</button>
         </div>
       </div>
@@ -957,6 +1011,21 @@
         <textarea id="pdfExtraText" rows="2" style="margin-top:8px;"></textarea>
       </div>
 
+      <!-- Image / Screenshot -->
+      <div id="input-image" class="hidden">
+        <div class="section-label">
+          <span data-i18n="lblImage">Image / Screenshot</span>
+          <button type="button" class="btn-ghost hidden" id="btnClearImages" style="height:20px; padding:0 6px; font-size:11px;" data-i18n="btnClear">Clear</button>
+        </div>
+        <div class="dropzone" id="imgDropzone" tabindex="0" data-i18n="imgDrop">
+          Paste screenshot (Ctrl+V / Cmd+V), drop image, or click to select
+        </div>
+        <input type="file" id="imgFileInput" accept="image/*" multiple class="hidden" />
+        <div id="imgPreviewList" class="img-preview-list hidden"></div>
+        <div id="imgStatus" class="notice-line"></div>
+        <textarea id="imgExtraText" rows="2" style="margin-top:8px;"></textarea>
+      </div>
+
       <!-- OI Code -->
       <div id="input-oi_code" class="hidden">
         <div class="section-label"><span data-i18n="lblOiCode">OI Problem Code / Title</span></div>
@@ -973,6 +1042,10 @@
       <div>
         <div class="section-label"><span data-i18n="lblMode">2. Mode</span></div>
         <div class="mode-list">
+          <button class="mode-card" data-mode="summarize">
+            <div class="mode-title" data-i18n="modeSummarizeTitle">Problem Summary</div>
+            <div class="mode-desc" data-i18n="modeSummarizeDesc">Strip story fluff into formal math, I/O &amp; constraints</div>
+          </button>
           <button class="mode-card active" data-mode="hint_sol">
             <div class="mode-title" data-i18n="modeHintSolTitle">Hint / Solution</div>
             <div class="mode-desc" data-i18n="modeHintSolDesc">Progressive hints or complete editorial</div>
@@ -1322,6 +1395,15 @@ Query cand by query tin-tout, then check
         lblPdf: "File PDF (tối đa 20MB)",
         pdfDrop: "Kéo thả file .pdf vào đây hoặc bấm để chọn",
         phPdfExtra: "Ghi chú thêm cho PDF (vd: chỉ xét bài 2)...",
+        tabImage: "Ảnh",
+        lblImage: "Ảnh chụp màn hình / Hình ảnh",
+        imgDrop: "Dán ảnh (Ctrl+V / Cmd+V), kéo thả, hoặc bấm để chọn",
+        phImgExtra: "Ghi chú thêm cho ảnh (vd: chỉ giải bài B, hoặc phần constraint ở ảnh 2)...",
+        errNoImg: "Bạn chưa dán hoặc chọn ảnh đề bài.",
+        imgBadType: "Chỉ hỗ trợ định dạng ảnh (PNG, JPG, WEBP...).",
+        imgTooBig: "Tổng dung lượng ảnh vượt quá 20MB.",
+        imgLoaded: "Đã nạp",
+        imgUnit: "ảnh",
         lblOiCode: "Mã bài OI / Tên bài",
         phOiCode: "VD: IOI 2023 Closing Time, VOI 2024 Bai 3...",
         oiFreeWarnGemini: "Free Tier không hỗ trợ Google Search. Model chỉ giải được nếu đã biết sẵn đề bài này; khuyến nghị dùng Statement hoặc PDF.",
@@ -1331,12 +1413,16 @@ Query cand by query tin-tout, then check
         searchEnabledOR: "Web Search Plugin (OpenRouter)",
         searchDisabledOR: "Web Search (chỉ ở Paid Tier / có Credit)",
         lblMode: "2. Hạng mục",
+        modeSummarizeTitle: "Tóm đề",
+        modeSummarizeDesc: "Tóm tắt statement; giữ nguyên I/O, ràng buộc, sample & subtask",
+        lblSummarizeNote: "Ghi chú thêm khi tóm đề (tuỳ chọn)",
+        phSummarizeNote: "VD: Chỉ tóm tắt bài C trong PDF, hoặc giải thích kỹ sample 2...",
         modeHintSolTitle: "Hint / Solution",
-        modeHintSolDesc: "Gợi ý nối tiếp hoặc lời giải chi tiết",
+        modeHintSolDesc: "Gợi ý từng bước hoặc lời giải chi tiết (không kèm code)",
         modeCheckTitle: "Kiểm tra ý tưởng / Công thức",
-        modeCheckDesc: "Soát logic, độ phức tạp, edge case, phản chứng",
+        modeCheckDesc: "Xác nhận đúng/sai, đánh giá logic, phản chứng & gợi ý hướng đúng",
         modeCodeGenTitle: "Code mẫu / Sinh test",
-        modeCodeGenDesc: "Code kèm khối /* */ và gentest() có comment",
+        modeCodeGenDesc: "Tận dụng sol đã biết để code C++ chuẩn style & gentest()",
         lblHintOpt: "Tuỳ chọn Hint / Solution",
         optHint: "Hint",
         optSol: "Solution",
@@ -1459,6 +1545,15 @@ Query cand by query tin-tout, then check
         lblPdf: "PDF File (max 20MB)",
         pdfDrop: "Drop .pdf file here or click to select",
         phPdfExtra: "Optional PDF note (e.g. Problem 2 only)...",
+        tabImage: "Image",
+        lblImage: "Image / Screenshot",
+        imgDrop: "Paste screenshot (Ctrl+V / Cmd+V), drop, or click to select",
+        phImgExtra: "Optional note for image (e.g. solve Problem B only)...",
+        errNoImg: "Please paste or select a problem image.",
+        imgBadType: "Only image files (PNG, JPG, WEBP...) are supported.",
+        imgTooBig: "Total image size exceeds 20MB.",
+        imgLoaded: "Loaded",
+        imgUnit: "image(s)",
         lblOiCode: "OI Problem Code / Title",
         phOiCode: "e.g. IOI 2023 Closing Time, VOI 2024 Task 3...",
         oiFreeWarnGemini: "Google Search is disabled on Free Tier. Model can only solve if it already knows this problem; Statement or PDF is recommended.",
@@ -1468,12 +1563,16 @@ Query cand by query tin-tout, then check
         searchEnabledOR: "Web Search Plugin (OpenRouter)",
         searchDisabledOR: "Web Search (Paid Tier / Credits only)",
         lblMode: "2. Category",
+        modeSummarizeTitle: "Problem Summary",
+        modeSummarizeDesc: "Summarize statement; preserve I/O, constraints, samples & subtasks",
+        lblSummarizeNote: "Extra notes for summary (optional)",
+        phSummarizeNote: "e.g. Summarize Problem C only, or explain Sample 2 in detail...",
         modeHintSolTitle: "Hint / Solution",
-        modeHintSolDesc: "Guided hints or complete editorial",
+        modeHintSolDesc: "Step-by-step hints or full solution (no sample code)",
         modeCheckTitle: "Check Idea / Formula",
-        modeCheckDesc: "Verify logic, complexity, edge cases, counterexamples",
+        modeCheckDesc: "Confirm right/wrong, critique logic, counterexamples & right direction",
         modeCodeGenTitle: "Reference Code / Generate Test",
-        modeCodeGenDesc: "Code with /* */ summary & commented gentest()",
+        modeCodeGenDesc: "Reuse established solution to write C++ code & gentest()",
         lblHintOpt: "Hint / Solution Option",
         optHint: "Hint",
         optSol: "Solution",
@@ -1604,9 +1703,10 @@ Query cand by query tin-tout, then check
       mode: "hint_sol",
       hintOption: "hint",
       codeOption: "ref_code",
-      modeNotes: { hint_sol: "", check_idea: "", code_gen: "" },
+      modeNotes: { summarize: "", hint_sol: "", check_idea: "", code_gen: "" },
       pdfBase64: null,
       pdfName: null,
+      images: [],
       hasActiveSession: false,
       sessionType: "none",
       isStreaming: false,
@@ -2088,6 +2188,7 @@ Query cand by query tin-tout, then check
 
       $("statementText").placeholder = t("phStatement");
       $("pdfExtraText").placeholder = t("phPdfExtra");
+      $("imgExtraText").placeholder = t("phImgExtra");
       $("oiCodeInput").placeholder = t("phOiCode");
 
       const opts = $("thinkingSelect").options;
@@ -2119,6 +2220,10 @@ Query cand by query tin-tout, then check
         $("ideaBoxLabel").textContent = t("lblIdeaCheck");
         $("ideaText").placeholder = t("phIdeaCheck");
         $("ideaText").rows = 5;
+      } else if (state.mode === "summarize") {
+        $("ideaBoxLabel").textContent = t("lblSummarizeNote");
+        $("ideaText").placeholder = t("phSummarizeNote");
+        $("ideaText").rows = 2;
       } else {
         $("ideaBoxLabel").textContent = t("lblCodeNotes");
         $("ideaText").placeholder = t("phCodeNotes");
@@ -2232,12 +2337,29 @@ Query cand by query tin-tout, then check
 
       return `You are an elite Competitive Programming Coach (IOI / ICPC World Finals level) assisting Hughie Do (handle: Born_To_Laugh).
 ${langDirective}
-Use LaTeX ($...$ and $$...$$) for mathematical expressions and time/space complexities.
 
 ================================================================
-MANDATORY C++ CODING STYLE & TEMPLATES (FOLLOW EXACTLY)
+1. STRICT TASK SCOPE & NO-CODE GUARDRAIL (HIGHEST PRIORITY)
 ================================================================
-Every single C++ snippet, full solution, or gentest() you write MUST strictly obey all rules below without exception:
+- Obey the exact scope of the user's current request.
+- NEVER output C++ code, code templates, pseudo-code implementations, or \`gentest()\` during **Problem Summary**, **Hint**, **Full Solution**, or **Check Idea** unless the user explicitly asks for code in a follow-up message.
+- Only output full C++ code or \`gentest()\` when the active task explicitly requests **Reference Code** or **Generate Test** (or when explicitly requested in a follow-up).
+- Multi-turn continuity: If the user previously asked for **Full Solution** (or discussed/verified the solution) earlier in this conversation and now asks for **Reference Code** or **Generate Test**, directly reuse and implement that already-established solution rather than re-deriving from scratch.
+
+================================================================
+2. MARKDOWN FORMATTING & CLARITY RULES
+================================================================
+- Format every response in clean, structured, concise, easy-to-read Markdown:
+  * Use clear \`###\` section headings, short bullet points, and **bold** text for key takeaways.
+  * Use LaTeX (\`$...$\` inline and \`$$...$$\` display) for all variables, formulas, constraints, and complexities.
+  * **Input / Output Format vs. Sample Tests:** NEVER put Input/Output format descriptions (containing variables/subscripts like $N$, $a_1, \\dots, a_N$) inside fenced code blocks (\`\`\` \`\`\`), and NEVER put multi-line \`$$ ... $$\` display math inside blockquotes (\`>\`). Format Input/Output lines cleanly using inline LaTeX on separate lines (e.g. \`$N$\`, \`$a_1\\ b_1$\`, \`$\\vdots$\`, \`$a_{N-1}\\ b_{N-1}$\`) or a single \`$$\\begin{aligned} ... \\end{aligned}$$\` block. Reserve fenced code blocks strictly for concrete Sample Input/Output test data (\`\`\`text) and source code (\`\`\`cpp).
+  * Avoid walls of text; keep explanations crisp and scannable.
+- **Code Fences:** Always specify an explicit language tag on fenced Markdown blocks (\`\`\`cpp on its own line for C++ code, \`\`\`text on its own line for concrete Sample Input/Output), with a closing \`\`\` on its own line and a blank line before and after the block.
+
+================================================================
+3. MANDATORY C++ CODING STYLE & TEMPLATES (ONLY WHEN WRITING CODE)
+================================================================
+Whenever a task DOES require writing C++ code or \`gentest()\`, strictly obey all rules below without exception:
 ${tpl.rules}
 
 Study Hughie Do's exact C++ style exemplar below (including the final /* ... */ summary comment block at the very bottom!) and replicate its spacing, brace placement, global array naming (maxn), macro usage (alle, fi, se), and bottom comment block faithfully:
@@ -2269,6 +2391,10 @@ ${tpl.gen.trim()}
         const extra = $("pdfExtraText").value.trim();
         return "### Problem:\nRead the problem statement from the attached PDF." + (extra ? `\nNote: ${extra}` : "");
       }
+      if (state.inputType === "image") {
+        const extra = $("imgExtraText").value.trim();
+        return "### Problem:\nRead the problem statement carefully from the attached screenshot/image(s) (transcribe all constraints, formulas, and samples accurately)." + (extra ? `\nNote: ${extra}` : "");
+      }
       return `### Problem Statement:\n${$("statementText").value.trim()}`;
     }
 
@@ -2276,16 +2402,32 @@ ${tpl.gen.trim()}
       const isVi = state.lang === "vi";
       const noteText = $("ideaText").value.trim();
 
+      if (state.mode === "summarize") {
+        const extraNote = noteText
+          ? isVi
+            ? `\n\nGhi chú thêm của tôi:\n\`\`\`\n${noteText}\n\`\`\``
+            : `\n\nAdditional user note:\n\`\`\`\n${noteText}\n\`\`\``
+          : "";
+
+        return (
+          (isVi
+            ? "### Yêu cầu: TÓM ĐỀ (PROBLEM SUMMARY)\n**QUY TẮC BẮT BUỘC:** Tuyệt đối KHÔNG nêu hint, KHÔNG tiết lộ thuật toán/lời giải và KHÔNG viết bất kỳ dòng code mẫu nào ở lượt này.\nHãy trình bày lại đề bài bằng Markdown rõ ràng, súc tích theo đúng 5 mục sau:\n1. **Tóm tắt Statement:** Lược bỏ cốt truyện rườm rà, phát biểu lại bài toán một cách súc tích, chính xác bằng ngôn ngữ toán học.\n2. **Input & Output (Giữ nguyên & Dùng LaTeX):** Giữ nguyên đầy đủ định dạng dữ liệu vào/ra, thứ tự đọc biến và yêu cầu kết quả (kèm modulo nếu có). Trình bày từng dòng định dạng bằng inline LaTeX (`$N$`, `$a_1\\ b_1$`, `$\\vdots$`, ...) hoặc một khối `$$\\begin{aligned}...\\end{aligned}$$` — tuyệt đối KHÔNG bọc trong code block ` ``` ` và KHÔNG đặt `$$...$$` bên trong blockquote `>`.\n3. **Ràng buộc / Constraints (Giữ nguyên):** Liệt kê đầy đủ, nguyên vẹn mọi giới hạn biến ($N, M, Q, \\sum N...$), Time Limit, Memory Limit và các điều kiện đặc biệt.\n4. **Subtasks (Giữ nguyên nếu có):** Liệt kê đầy đủ điểm số và ràng buộc của từng subtask (nếu đề không chia subtask thì ghi *Không có*).\n5. **Test mẫu & Giải thích:** Giữ nguyên các bộ Sample Input / Output của đề. Nếu test mẫu gốc chưa có giải thích hoặc diễn đạt khó hiểu, hãy viết lại / bổ sung phần giải thích từng bước thật dễ hiểu."
+            : "### Task: PROBLEM SUMMARY\n**MANDATORY RULE:** Do NOT give any hints, do NOT reveal the algorithm/solution, and do NOT write any sample code in this turn.\nPresent the problem in clean, concise Markdown with these exact 5 sections:\n1. **Statement Summary:** Strip narrative fluff and restate the problem concisely and accurately in mathematical terms.\n2. **Input & Output (Preserved with LaTeX):** Keep the exact input/output format, variable order, and output requirements (including modulo if any) intact. Format each line using inline LaTeX (`$N$`, `$a_1\\ b_1$`, `$\\vdots$`, ...) or a single `$$\\begin{aligned}...\\end{aligned}$$` block — do NOT put it inside a ` ``` ` code block and do NOT put `$$...$$` inside a `>` blockquote.\n3. **Constraints (Preserved):** Preserve all variable bounds ($N, M, Q, \\sum N...$), Time/Memory limits, and special guarantees verbatim.\n4. **Subtasks (Preserved if any):** List all subtasks with their exact points and constraints (if none, state *None*).\n5. **Sample Tests & Walkthrough:** Keep the exact Sample Input / Output from the statement. If the original sample explanation is missing or confusing, rewrite/expand the walkthrough so it is crystal clear.") +
+          extraNote
+        );
+      }
+
       if (state.mode === "hint_sol") {
         if (state.hintOption === "hint") {
-          if (noteText) {
-            return isVi
-              ? `### Yêu cầu: CHO HINT THEO HƯỚNG ĐANG NGHĨ\nĐây là ghi chú / hướng suy nghĩ hiện tại của tôi:\n\`\`\`\n${noteText}\n\`\`\`\nTuyệt đối KHÔNG tiết lộ lời giải hoàn chỉnh hay viết code. Hãy:\n1. Nhận xét ngắn gọn hướng tôi đang nghĩ có đi đúng hướng không (nếu lệch thì chỉ nhẹ chỗ vướng).\n2. Đưa ra 2-3 gợi ý (Hint) tăng dần nối tiếp trực tiếp từ suy nghĩ của tôi để giúp tôi tự nghĩ tiếp ra lời giải.`
-              : `### Task: GUIDED HINT FROM MY CURRENT THOUGHTS\nMy current notes / thinking direction:\n\`\`\`\n${noteText}\n\`\`\`\nDo NOT reveal the full solution or code. Please:\n1. Briefly evaluate whether my current direction is on track (gently point out any pitfall if off-track).\n2. Provide 2-3 progressive hints building directly on my thoughts so I can continue solving it myself.`;
-          }
+          const directionBlock = noteText
+            ? isVi
+              ? `Đây là ghi chú / hướng suy nghĩ hiện tại của tôi:\n\`\`\`\n${noteText}\n\`\`\`\nTrước tiên hãy nhận xét ngắn gọn hướng tôi đang nghĩ có đúng không (nếu lệch thì chỉ nhẹ điểm vướng), sau đó đưa ra các Hint nối tiếp trực tiếp từ suy nghĩ của tôi.\n\n`
+              : `My current notes / thinking direction:\n\`\`\`\n${noteText}\n\`\`\`\nFirst briefly evaluate whether my current direction is on track (gently point out any pitfall if off-track), then provide progressive hints building directly on my thoughts.\n\n`
+            : "";
+
           return isVi
-            ? "### Yêu cầu: CHỈ CHO HINT\nTuyệt đối KHÔNG tiết lộ lời giải hoàn chỉnh hay viết code. Chia thành 3 mức Hint tăng dần (Hint 1: quan sát nền tảng; Hint 2: hướng tiếp cận / CTDL; Hint 3: chìa khoá tối ưu) để tôi tự suy nghĩ."
-            : "### Task: HINT ONLY\nDo NOT reveal the full solution or code. Provide 3 progressive hints (Hint 1: key observation; Hint 2: approach/data structure; Hint 3: crucial transition/optimization).";
+            ? `### Yêu cầu: GỢI Ý DẦN DẦN (HINT ONLY)\n${directionBlock}**QUY TẮC BẮT BUỘC:** Tuyệt đối KHÔNG nói toẹt lời giải hoàn chỉnh (full solution) và KHÔNG viết code mẫu ở lượt này.\n- Không gò bó cứng nhắc số lượng hint; hãy tự đánh giá bài toán này thực sự có bao nhiêu mắt xích / nhận xét quan trọng nhất (có thể là 2, 3, 4 hoặc nhiều bước hơn tuỳ độ sâu của bài) để người đọc tự xâu chuỗi ra lời giải.\n- Trình bày bằng Markdown rõ ràng, liệt kê dần từ **Hint 1, Hint 2, ...** theo đúng **mạch tư duy tự nhiên** (từ quan sát ban đầu / cách nhìn bài toán → các tính chất bất biến hoặc nhận xét then chốt → hướng kỹ thuật / cấu trúc dữ liệu phù hợp để đạt độ phức tạp tối ưu, nhưng vẫn để người đọc tự hoàn thiện bước ghép cuối).`
+            : `### Task: PROGRESSIVE HINTS (HINT ONLY)\n${directionBlock}**MANDATORY RULE:** Do NOT spoil the complete solution and do NOT write any sample code in this turn.\n- Do NOT force a rigid fixed number of hints; identify the truly important observations and stepping stones for this specific problem (whether 2, 3, 4, or more steps depending on problem depth) so the reader can connect the dots themselves.\n- Present in clean Markdown, listing **Hint 1, Hint 2, ...** progressively following a **natural chain of thought** (from initial observation / problem reformulation → key structural properties or invariants → suitable algorithmic technique / data structure to meet constraints, while leaving the final synthesis to the reader).`;
         }
 
         const solNoteBlock = noteText
@@ -2296,30 +2438,30 @@ ${tpl.gen.trim()}
 
         return (
           (isVi
-            ? "### Yêu cầu: SOLUTION CHI TIẾT\nPhân tích trực giác, chứng minh tính đúng đắn, trình bày thuật toán/công thức đầy đủ và đánh giá độ phức tạp Time & Space theo ràng buộc."
-            : "### Task: FULL SOLUTION\nProvide intuition, formal correctness proof, complete algorithm/formula, and exact Time & Space complexity.") +
+            ? "### Yêu cầu: GIẢI THÍCH SOLUTION ĐẦY ĐỦ (KHÔNG CODE MẪU)\n**QUY TẮC BẮT BUỘC:** Chỉ trình bày lời giải bằng lời và công thức toán học — **tuyệt đối KHÔNG viết code mẫu C++** ở lượt này (code mẫu sẽ được yêu cầu riêng ở bước sau).\nTrình bày bằng Markdown rõ ràng, súc tích theo các mục:\n1. **Ý tưởng & Trực giác:** Tại sao lại nghĩ ra hướng tiếp cận này.\n2. **Thuật toán & Công thức chi tiết:** Trình bày từng bước xử lý, công thức chuyển trạng thái / truy vấn và cách xử lý trường hợp biên.\n3. **Chứng minh tính đúng đắn:** Giải thích ngắn gọn tại sao thuật toán luôn cho kết quả chính xác.\n4. **Độ phức tạp:** Đánh giá Time & Space Complexity so với ràng buộc đề bài."
+            : "### Task: FULL SOLUTION EXPLANATION (NO SAMPLE CODE)\n**MANDATORY RULE:** Explain the solution purely in prose and math — **do NOT write any C++ sample code** in this turn (code will be requested separately in the next step).\nPresent in clean, concise Markdown:\n1. **Intuition & Approach:** Why this approach works.\n2. **Detailed Algorithm & Formulas:** Step-by-step procedure, state transitions / query logic, and edge cases.\n3. **Correctness Argument:** Concise proof of why the algorithm is always valid.\n4. **Complexity:** Exact Time & Space complexity against problem constraints.") +
           solNoteBlock
         );
       }
 
       if (state.mode === "check_idea") {
         return isVi
-          ? `### Yêu cầu: KIỂM TRA Ý TƯỞNG / CÔNG THỨC\nNội dung cần kiểm tra:\n\`\`\`\n${noteText}\n\`\`\`\nHãy đánh giá kỹ:\n1. Tính đúng đắn và các trường hợp biên (corner cases).\n2. Nếu sai hoặc thiếu: đưa ra 1 test phản chứng nhỏ nhất và giải thích.\n3. Độ phức tạp với constraint của đề (AC hay TLE/MLE).\n4. Cách sửa / tối ưu để AC.`
-          : `### Task: CHECK IDEA / FORMULA\nDraft to verify:\n\`\`\`\n${noteText}\n\`\`\`\nEvaluate carefully:\n1. Correctness and corner cases.\n2. If flawed: give the smallest counterexample test and explain why.\n3. Time/Space complexity against constraints.\n4. Exact fix or optimization to AC.`;
+          ? `### Yêu cầu: KIỂM CHỨNG Ý TƯỞNG / CÔNG THỨC\nNội dung cần kiểm chứng:\n\`\`\`\n${noteText}\n\`\`\`\n**QUY TẮC BẮT BUỘC:** Không viết full code mẫu (nếu cần minh hoạ một đoạn ngắn thì bọc trong \`\`\`cpp ... \`\`\`). Trình bày bằng Markdown súc tích theo đúng 4 mục:\n1. **Kết luận kiểm chứng:** Khẳng định rõ ngay dòng đầu tiên: **ĐÚNG (AC)**, **ĐÚNG Ý TƯỞNG NHƯNG CHƯA TỐI ƯU (TLE/MLE)**, hoặc **CHƯA ĐÚNG / SAI (WA)**.\n2. **Đánh giá chi tiết:** Phân tích điểm hợp lý, lỗ hổng logic, các trường hợp biên (corner cases) và đánh giá độ phức tạp Time/Space theo ràng buộc.\n3. **Test phản chứng (nếu sai/thiếu):** Đưa ra 1 test nhỏ nhất làm ý tưởng bị sai và giải thích output đúng vs output theo ý tưởng.\n4. **Gợi ý hướng nghĩ đúng:** Đưa ra định hướng / nhận xét giúp sửa lại cho đúng hoặc tối ưu để AC (chưa cần viết full code).`
+          : `### Task: VERIFY IDEA / FORMULA\nDraft to verify:\n\`\`\`\n${noteText}\n\`\`\`\n**MANDATORY RULE:** Do not write full sample code (if showing a tiny snippet, wrap it in \`\`\`cpp ... \`\`\`). Present in concise Markdown with these 4 sections:\n1. **Verification Verdict:** State clearly on the very first line: **CORRECT (AC)**, **VALID IDEA BUT SUBOPTIMAL (TLE/MLE)**, or **INCORRECT / INCOMPLETE (WA)**.\n2. **Detailed Evaluation:** Analyze sound parts, logical flaws, corner cases, and Time/Space complexity against constraints.\n3. **Counterexample (if flawed):** Provide the smallest counterexample test showing why it fails.\n4. **Guidance Toward the Right Direction:** Give clear hints/direction to fix or optimize the idea to AC without dumping full code.`;
       }
 
       if (state.codeOption === "ref_code") {
         return isVi
-          ? "### Yêu cầu: VIẾT CODE MẪU CHUẨN\nViết code C++ hoàn chỉnh tuân thủ tuyệt đối template và phong cách của Hughie Do (không space trước `{`, không space sau `if`/`for`/`while`, dùng `maxn`, biến toàn cục, `void solve(){...}`, `alle`, `fi`/`se`, giữ đúng `signed main(){}`).\nBẮT BUỘC: Sau `signed main(){}` ở cuối file code, viết một khối comment `/* ... */` ngắn gọn theo đúng phong cách của tôi (liệt kê `control:`, trạng thái/công thức dùng `->` hoặc `==>`, và tóm tắt nhiệm vụ từng hàm/thao tác chính). Không viết `gentest()` ở lượt này." +
+          ? "### Yêu cầu: VIẾT CODE MẪU CHUẨN\n- Nếu lời giải (Solution) đã được phân tích/chốt ở các lượt trước trong cuộc hội thoại này, hãy **tận dụng trực tiếp lời giải đó** để cài đặt ngay mà không cần nghĩ lại hướng khác.\n- Viết code C++ hoàn chỉnh tuân thủ tuyệt đối template và phong cách của Hughie Do (không space trước `{`, không space sau `if`/`for`/`while`, dùng `maxn`, biến toàn cục, `void solve(){...}`, `alle`, `fi`/`se`, giữ đúng `signed main(){}`).\n- Bọc toàn bộ code trong khối Markdown ` ```cpp ... ``` `.\n- **BẮT BUỘC:** Sau `signed main(){}` ở cuối file code, viết một khối comment `/* ... */` ngắn gọn theo đúng phong cách của tôi (liệt kê `control:`, trạng thái/công thức dùng `->` hoặc `==>`, và tóm tắt nhiệm vụ từng hàm/thao tác chính). Không viết `gentest()` ở lượt này." +
             (noteText ? `\nGhi chú thêm: ${noteText}` : "")
-          : "### Task: REFERENCE CODE\nWrite the complete C++ solution strictly following Hughie Do's template and coding style (no space before `{`, no space after `if`/`for`/`while`, `maxn`, global variables, `void solve(){...}`, `alle`, `fi`/`se`, exact `signed main(){}`).\nMANDATORY: Immediately after `signed main(){}` at the very end of the code, include a `/* ... */` block comment summarizing the algorithm in Hughie's exact shorthand style (`control:`, states/formulas with `->` / `==>`, and concise operation/function summaries). Do not output `gentest()` here." +
+          : "### Task: REFERENCE CODE\n- If the solution/algorithm was already established in earlier turns of this conversation, **directly reuse and implement that exact solution** without re-deriving from scratch.\n- Write the complete C++ solution strictly following Hughie Do's template and coding style (no space before `{`, no space after `if`/`for`/`while`, `maxn`, global variables, `void solve(){...}`, `alle`, `fi`/`se`, exact `signed main(){}`).\n- Wrap the entire code inside a ` ```cpp ... ``` ` Markdown block.\n- **MANDATORY:** Immediately after `signed main(){}` at the very end of the code, include a `/* ... */` block comment summarizing the algorithm in Hughie's exact shorthand style (`control:`, states/formulas with `->` / `==>`, and concise operation/function summaries). Do not output `gentest()` here." +
             (noteText ? `\nExtra notes: ${noteText}` : "");
       }
 
       return isVi
-        ? "### Yêu cầu: VIẾT CODE SINH TEST (`gentest`)\nCHỈ trả ra duy nhất hàm `void gentest(){ ... }` ghi vào `\"inp.txt\"` và dùng `rando(l, r)` có sẵn (không `#include`, không `main()`, không tự định nghĩa lại `rando`). Tuân thủ phong cách không space trước `{` và không space sau `if`/`for`/`while`.\nBẮT BUỘC: Thêm comment `// ...` rõ ràng ngay phía trên từng block code trong `gentest()` để giải thích block đó sẽ sinh dữ liệu gì (sinh tham số, sinh cây/đồ thị, sinh mảng, sinh truy vấn...). Đảm bảo sinh đúng format và tính chất hợp lệ của đề; mặc định kích thước vừa để stress-test kèm comment chỗ tăng lên max constraint." +
+        ? "### Yêu cầu: VIẾT CODE SINH TEST (`gentest`)\n- CHỈ trả ra duy nhất hàm `void gentest(){ ... }` bọc trong khối Markdown ` ```cpp ... ``` `, ghi vào `\"inp.txt\"` và dùng `rando(l, r)` có sẵn (không `#include`, không `main()`, không tự định nghĩa lại `rando`).\n- Tuân thủ phong cách không space trước `{` và không space sau `if`/`for`/`while`.\n- **BẮT BUỘC:** Thêm comment `// ...` rõ ràng ngay phía trên từng block code trong `gentest()` để giải thích block đó sẽ sinh dữ liệu gì (sinh tham số, sinh cây/đồ thị, sinh mảng, sinh truy vấn...). Đảm bảo sinh đúng format và tính chất hợp lệ của đề; mặc định kích thước vừa để stress-test kèm comment chỗ tăng lên max constraint." +
           (noteText ? `\nGhi chú thêm: ${noteText}` : "")
-        : "### Task: GENERATE TEST (`gentest`)\nOutput ONLY the single function `void gentest(){ ... }` writing to `\"inp.txt\"` using the pre-existing `rando(l, r)` (no `#include`, no `main()`, no re-defining `rando`). Follow strict brace/keyword spacing (`if(`, `){`).\nMANDATORY: Add clear `// ...` comments above each logical block inside `gentest()` explaining what that block generates (parameters, tree/graph structure, arrays, queries, etc.). Ensure valid input invariants; default to stress-test sizes with comments for max constraints." +
+        : "### Task: GENERATE TEST (`gentest`)\n- Output ONLY the single function `void gentest(){ ... }` wrapped in a ` ```cpp ... ``` ` Markdown block, writing to `\"inp.txt\"` using the pre-existing `rando(l, r)` (no `#include`, no `main()`, no re-defining `rando`).\n- Follow strict brace/keyword spacing (`if(`, `){`).\n- **MANDATORY:** Add clear `// ...` comments above each logical block inside `gentest()` explaining what that block generates (parameters, tree/graph structure, arrays, queries, etc.). Ensure valid input invariants; default to stress-test sizes with comments for max constraints." +
           (noteText ? `\nExtra notes: ${noteText}` : "");
     }
 
@@ -2403,16 +2545,18 @@ ${tpl.gen.trim()}
     function renderMarkdown(container, rawMarkdown, options = {}) {
       const { escapeRawTags = false, skipHighlight = false, skipMath = false } = options;
 
+      const normalizedMarkdown = rawMarkdown.replace(/([^\n`])(```[a-zA-Z0-9_+-]*\r?\n)/g, "$1\n\n$2");
       const codeBlocks = [];
-      let text = rawMarkdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
+      let text = normalizedMarkdown.replace(/```[\s\S]*?```|`[^`\n]+`/g, (m) => {
         codeBlocks.push(m);
         return `@@CODE_${codeBlocks.length - 1}@@`;
       });
 
+      const cleanBlockquoteMath = (m) => m.replace(/\n[ \t]*>+[ \t]?/g, "\n");
       const mathBlocks = [];
       text = text
-        .replace(/\$\$([\s\S]+?)\$\$/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
-        .replace(/\\\[([\s\S]+?)\\\]/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
+        .replace(/\$\$([\s\S]+?)\$\$/g, (m) => { mathBlocks.push(cleanBlockquoteMath(m)); return `@@MATH_${mathBlocks.length - 1}@@`; })
+        .replace(/\\\[([\s\S]+?)\\\]/g, (m) => { mathBlocks.push(cleanBlockquoteMath(m)); return `@@MATH_${mathBlocks.length - 1}@@`; })
         .replace(/\\\(([\s\S]+?)\\\)/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; })
         .replace(/\$([^\n$]+?)\$/g, (m) => { mathBlocks.push(m); return `@@MATH_${mathBlocks.length - 1}@@`; });
 
@@ -2436,13 +2580,51 @@ ${tpl.gen.trim()}
         const codeEl = pre.querySelector("code");
         if (!codeEl) return;
 
-        if (!skipHighlight && window.hljs && typeof window.hljs.highlightElement === "function") {
+        const rawCls = codeEl.className || "";
+        const explicitLangMatch = rawCls.match(/language-([\w+-]+)/);
+        const explicitLang = explicitLangMatch ? explicitLangMatch[1].toLowerCase() : "";
+        const plainLangs = new Set(["text", "txt", "plaintext", "plain", "sample"]);
+        const rawText = codeEl.textContent || "";
+
+        // Auto-convert untagged / plain-text blocks that contain LaTeX I/O format notation
+        // (e.g. a_1 b_1, a_{N-1} b_{N-1}, \dots, $...$) into KaTeX-rendered schema boxes
+        const hasLatexNotation =
+          /(?:[A-Za-z0-9\)\]])[_^](?:\{[^}]+\}|[A-Za-z0-9])/.test(rawText) ||
+          /\\(?:dots|vdots|cdots|ldots|le|ge|leq|geq|times|sum|prod|in|to|rightarrow)\b/.test(rawText) ||
+          /\$[^$\n]+\$/.test(rawText);
+
+        if (!skipMath && (!explicitLang || plainLangs.has(explicitLang)) && hasLatexNotation) {
+          const schemaBox = document.createElement("div");
+          schemaBox.className = "io-schema-box";
+          rawText
+            .trim()
+            .split("\n")
+            .forEach((line) => {
+              const trimmed = line.trim();
+              if (!trimmed) return;
+              const row = document.createElement("div");
+              if (trimmed === "..." || trimmed === "…") {
+                row.textContent = "$\\vdots$";
+              } else if (trimmed.includes("$")) {
+                row.textContent = trimmed;
+              } else {
+                const formattedMath = trimmed
+                  .replace(/\.{3}|…/g, "\\dots")
+                  .replace(/\s+/g, "\\;");
+                row.textContent = `$${formattedMath}$`;
+              }
+              schemaBox.appendChild(row);
+            });
+          pre.parentNode.replaceChild(schemaBox, pre);
+          return;
+        }
+
+        // Only run highlight.js when an explicit programming language tag is provided
+        if (!skipHighlight && explicitLang && !plainLangs.has(explicitLang) && window.hljs && typeof window.hljs.highlightElement === "function") {
           try { window.hljs.highlightElement(codeEl); } catch {}
         }
 
-        const cls = codeEl.className || "";
-        const langMatch = cls.match(/language-([\w+-]+)/);
-        const lang = langMatch ? langMatch[1] : "code";
+        const lang = explicitLang || "text";
 
         const box = document.createElement("div");
         box.className = "code-box";
@@ -2635,7 +2817,7 @@ ${tpl.gen.trim()}
           <span><strong>${providerTitle}</strong> <span class="tag">${label}</span></span>
           <span class="status-text" style="color:var(--accent);"></span>
         </div>
-        <details class="thought-box hidden" open>
+        <details class="thought-box hidden">
           <summary>${t("thinkingHeader")}</summary>
           <div class="thought-content markdown-body"></div>
         </details>
@@ -2752,14 +2934,24 @@ ${tpl.gen.trim()}
           const contentArr = [];
           for (const p of parts) {
             if (p.inlineData) {
-              hasPdf = true;
-              contentArr.push({
-                type: "file",
-                file: {
-                  filename: state.pdfName || "problem.pdf",
-                  file_data: `data:${p.inlineData.mimeType || "application/pdf"};base64,${p.inlineData.data}`,
-                },
-              });
+              const mime = p.inlineData.mimeType || "application/pdf";
+              if (mime.startsWith("image/")) {
+                contentArr.push({
+                  type: "image_url",
+                  image_url: {
+                    url: `data:${mime};base64,${p.inlineData.data}`,
+                  },
+                });
+              } else {
+                hasPdf = true;
+                contentArr.push({
+                  type: "file",
+                  file: {
+                    filename: state.pdfName || "problem.pdf",
+                    file_data: `data:${mime};base64,${p.inlineData.data}`,
+                  },
+                });
+              }
             } else if (p.text) {
               contentArr.push({ type: "text", text: p.text });
             }
@@ -2853,9 +3045,11 @@ ${tpl.gen.trim()}
       let rawThoughtEl = null;
       let thoughtRafPending = false;
       let lastThoughtFlush = 0;
+      let isThoughtFinalized = false;
 
-      function flushThoughtRaw() {
+      function flushThoughtRaw(force = false) {
         if (!fullThought) return;
+        if (!force && !thoughtBox.open) return;
         if (!rawThoughtEl) {
           rawThoughtEl = document.createElement("div");
           rawThoughtEl.className = "thought-raw";
@@ -2870,7 +3064,18 @@ ${tpl.gen.trim()}
         lastThoughtFlush = performance.now();
       }
 
+      thoughtBox.addEventListener("toggle", () => {
+        if (!thoughtBox.open) return;
+        if (!isThoughtFinalized) {
+          flushThoughtRaw(true);
+        } else if (!thoughtBox._rendered && fullThought) {
+          thoughtBox._rendered = true;
+          renderMarkdownAsync(thoughtContent, fullThought);
+        }
+      });
+
       function finalizeThoughtDisplay() {
+        isThoughtFinalized = true;
         if (!fullThought) return;
         thoughtSummary.textContent = t("thinkingDone");
         if (thoughtBox.open) {
@@ -2878,15 +3083,6 @@ ${tpl.gen.trim()}
           renderMarkdownAsync(thoughtContent, fullThought);
         } else {
           thoughtBox._rendered = false;
-          if (!thoughtBox._lazyBound) {
-            thoughtBox._lazyBound = true;
-            thoughtBox.addEventListener("toggle", () => {
-              if (thoughtBox.open && !thoughtBox._rendered) {
-                thoughtBox._rendered = true;
-                renderMarkdownAsync(thoughtContent, fullThought);
-              }
-            });
-          }
         }
       }
 
@@ -2909,6 +3105,9 @@ ${tpl.gen.trim()}
 
 
         if (!res.ok) {
+          if (provider === "gemini" && res.status === 503) {
+            incrementRpd("gemini");
+          }
           let errMsg = `HTTP ${res.status}`;
           try {
             const errJson = await res.json();
@@ -3245,7 +3444,7 @@ ${tpl.gen.trim()}
       const isOr = modalProvider === "openrouter";
       const savedKey = isOr ? getOrKey() : getGeminiKey();
       $("apiKeyInput").value = savedKey;
-      $("apiKeyInput").placeholder = isOr ? "sk-or-v1-..." : "AIzaSy...";
+      $("apiKeyInput").placeholder = isOr ? "sk-or-v1-..." : "AIzaSy... / AQ...";
       $("modalApiKeyLabel").textContent = isOr ? t("lblApiKeyOR") : t("lblApiKeyGemini");
       $("modalKeyStatusHint").textContent = savedKey ? `✓ ${t("keySavedBadge")}` : t("keyMissingBadge");
       $("modalKeyStatusHint").style.color = savedKey ? "var(--green)" : "var(--muted)";
@@ -3295,7 +3494,7 @@ ${tpl.gen.trim()}
 
       let saveTarget = modalProvider;
       if (val.startsWith("sk-or-")) saveTarget = "openrouter";
-      else if (val.startsWith("AIza")) saveTarget = "gemini";
+      else if (val.startsWith("AIza") || val.startsWith("AQ.")) saveTarget = "gemini";
 
       if (saveTarget === "openrouter") {
         if (val) localStorage.setItem(LS_KEYS.orApiKey, val);
@@ -3420,7 +3619,7 @@ ${tpl.gen.trim()}
         document.querySelectorAll("[data-input]").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
         state.inputType = btn.dataset.input;
-        ["statement", "pdf", "oi_code"].forEach((k) => {
+        ["statement", "pdf", "image", "oi_code"].forEach((k) => {
           $("input-" + k).classList.toggle("hidden", k !== state.inputType);
         });
         updateSearchToggleUI();
@@ -3495,6 +3694,119 @@ ${tpl.gen.trim()}
       reader.readAsDataURL(file);
     }
 
+    const imgDropzone = $("imgDropzone");
+    const imgInput = $("imgFileInput");
+
+    imgDropzone.addEventListener("click", () => imgInput.click());
+    imgDropzone.addEventListener("dragover", (e) => { e.preventDefault(); imgDropzone.classList.add("dragover"); });
+    imgDropzone.addEventListener("dragleave", () => imgDropzone.classList.remove("dragover"));
+    imgDropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      imgDropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length) addImageFiles(e.dataTransfer.files);
+    });
+    imgInput.addEventListener("change", () => {
+      if (imgInput.files.length) addImageFiles(imgInput.files);
+      imgInput.value = "";
+    });
+
+    $("btnClearImages").addEventListener("click", () => {
+      state.images = [];
+      renderImagePreviews();
+    });
+
+    document.addEventListener("paste", (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles = [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith("image/")) {
+          const f = item.getAsFile();
+          if (f) imageFiles.push(f);
+        }
+      }
+      if (imageFiles.length === 0) return;
+
+      const activeId = document.activeElement?.id || "";
+      const isInImgArea = activeId === "imgDropzone" || activeId === "imgExtraText";
+      if (state.inputType === "image" || isInImgArea) {
+        e.preventDefault();
+        addImageFiles(imageFiles);
+      }
+    });
+
+    function renderImagePreviews() {
+      const listEl = $("imgPreviewList");
+      const statusEl = $("imgStatus");
+      const clearBtn = $("btnClearImages");
+
+      listEl.innerHTML = "";
+      if (state.images.length === 0) {
+        listEl.classList.add("hidden");
+        clearBtn.classList.add("hidden");
+        statusEl.textContent = "";
+        return;
+      }
+
+      listEl.classList.remove("hidden");
+      clearBtn.classList.remove("hidden");
+      let totalBytes = 0;
+
+      state.images.forEach((img, idx) => {
+        totalBytes += img.size;
+        const wrap = document.createElement("div");
+        wrap.className = "img-thumb-wrap";
+        wrap.innerHTML = `<img src="${img.dataUrl}" alt="" /><button type="button" class="img-remove-btn" title="Remove">×</button>`;
+        wrap.querySelector(".img-remove-btn").addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          state.images.splice(idx, 1);
+          renderImagePreviews();
+        });
+        listEl.appendChild(wrap);
+      });
+
+      statusEl.style.color = "var(--green)";
+      statusEl.textContent = `${t("imgLoaded")} ${state.images.length} ${t("imgUnit")} (${(totalBytes / 1024).toFixed(1)} KB)`;
+    }
+
+    function addImageFiles(fileList) {
+      const files = Array.from(fileList);
+      let currentBytes = state.images.reduce((sum, x) => sum + x.size, 0);
+
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          $("imgStatus").style.color = "var(--red)";
+          $("imgStatus").textContent = t("imgBadType");
+          continue;
+        }
+        if (currentBytes + file.size > 20 * 1024 * 1024) {
+          $("imgStatus").style.color = "var(--red)";
+          $("imgStatus").textContent = t("imgTooBig");
+          break;
+        }
+        currentBytes += file.size;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result;
+          const base64 = dataUrl.split(",")[1];
+          const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg");
+          const name = file.name && file.name !== "image.png"
+            ? file.name
+            : `screenshot_${state.images.length + 1}.${ext}`;
+          state.images.push({
+            name,
+            mimeType: file.type,
+            base64,
+            dataUrl,
+            size: file.size,
+          });
+          renderImagePreviews();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
     $("btnStop").addEventListener("click", () => {
       if (state.abortController) {
         state.abortController.abort();
@@ -3510,7 +3822,9 @@ ${tpl.gen.trim()}
       state.chatHistory = [];
       state.lastContextTokens = 0;
       state.sessionTotals = { input: 0, thoughts: 0, output: 0, total: 0 };
-      state.modeNotes = { hint_sol: "", check_idea: "", code_gen: "" };
+      state.modeNotes = { summarize: "", hint_sol: "", check_idea: "", code_gen: "" };
+      state.images = [];
+      renderImagePreviews();
       $("ideaText").value = "";
       renderTelemetry();
       switchToLiveView();
@@ -3524,6 +3838,7 @@ ${tpl.gen.trim()}
     });
 
     function currentModeBadge() {
+      if (state.mode === "summarize") return t("modeSummarizeTitle");
       if (state.mode === "hint_sol") return state.hintOption === "hint" ? t("optHint") : t("optSol");
       if (state.mode === "check_idea") return t("modeCheckTitle");
       return state.codeOption === "ref_code" ? t("optRefCode") : t("optTestGen");
@@ -3577,14 +3892,12 @@ ${tpl.gen.trim()}
         contents.push({ role: "user", parts: [{ text: nextTaskPrompt }] });
 
         await streamAI(contents, useSearch, card, (answerText, thoughtText, usage, aborted) => {
-          state.chatHistory.push({ role: "user", text: nextTaskPrompt });
           if (answerText) {
+            state.chatHistory.push({ role: "user", text: nextTaskPrompt });
             state.chatHistory.push({ role: "model", text: answerText });
-          } else if (aborted) {
-            const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
-            state.chatHistory.push({ role: "model", text: snippet });
-          } else {
-            state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+          } else if (aborted && thoughtText) {
+            state.chatHistory.push({ role: "user", text: nextTaskPrompt });
+            state.chatHistory.push({ role: "model", text: `${t("interruptNote")}\n${thoughtText.slice(-1500)}` });
           }
         });
         return;
@@ -3593,11 +3906,16 @@ ${tpl.gen.trim()}
       if (state.inputType === "statement" && !$("statementText").value.trim()) { alert(t("errNoStmt")); return; }
       if (state.inputType === "oi_code" && !$("oiCodeInput").value.trim()) { alert(t("errNoOi")); return; }
       if (state.inputType === "pdf" && !state.pdfBase64) { alert(t("errNoPdf")); return; }
+      if (state.inputType === "image" && state.images.length === 0) { alert(t("errNoImg")); return; }
 
       const fullPrompt = `${buildProblemHeader()}\n\n${buildTaskInstruction()}`;
       const parts = [];
       if (state.inputType === "pdf") {
         parts.push({ inlineData: { mimeType: "application/pdf", data: state.pdfBase64 } });
+      } else if (state.inputType === "image") {
+        state.images.forEach((img) => {
+          parts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+        });
       }
       parts.push({ text: fullPrompt });
 
@@ -3615,10 +3933,16 @@ ${tpl.gen.trim()}
           ? $("oiCodeInput").value.trim()
           : state.inputType === "pdf"
           ? `[PDF] ${state.pdfName}`
+          : state.inputType === "image"
+          ? `[Image x${state.images.length}] ${$("imgExtraText").value.trim() || state.images[0]?.name || "Screenshot"}`
           : $("statementText").value.trim().split("\n")[0];
 
       const displayUserText =
-        state.inputType === "pdf" ? `[PDF: ${state.pdfName}]\n\n${fullPrompt}` : fullPrompt;
+        state.inputType === "pdf"
+          ? `[PDF: ${state.pdfName}]\n\n${fullPrompt}`
+          : state.inputType === "image"
+          ? `[Images: ${state.images.map((i) => i.name).join(", ")}]\n\n${fullPrompt}`
+          : fullPrompt;
 
       liveBox.innerHTML = "";
       addUserCard(liveBox, badge, displayUserText);
@@ -3630,11 +3954,13 @@ ${tpl.gen.trim()}
         if (answerText) {
           state.chatHistory.push({ role: "model", text: answerText });
           saveToHistory(shortTitle, modelLabel, displayUserText, answerText, thoughtText, usage, "problem", providerTitle);
-        } else if (aborted) {
-          const snippet = thoughtText ? `${t("interruptNote")}\n${thoughtText.slice(-1500)}` : t("interruptNote");
-          state.chatHistory.push({ role: "model", text: snippet });
+        } else if (aborted && thoughtText) {
+          state.chatHistory.push({ role: "model", text: `${t("interruptNote")}\n${thoughtText.slice(-1500)}` });
         } else {
-          state.chatHistory.push({ role: "model", text: t("noTextWarn") });
+          state.hasActiveSession = false;
+          state.sessionType = "none";
+          state.initialUserParts = null;
+          updateViewModeUI();
         }
       });
     }
@@ -3711,7 +4037,7 @@ ${tpl.gen.trim()}
       }
     });
 
-    ["statementText", "ideaText", "pdfExtraText", "oiCodeInput"].forEach((id) => {
+    ["statementText", "ideaText", "pdfExtraText", "imgExtraText", "oiCodeInput"].forEach((id) => {
       $(id).addEventListener("keydown", (e) => {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
