@@ -1751,12 +1751,19 @@ Query cand by query tin-tout, then check
       if (ctx >= 200000) score += 10;
       else if (ctx >= 100000) score += 5;
 
-      if (!inIntel && !inProg) {
-        if (/coder|code|reasoning|thinking|math|ultra|pro/i.test(id + " " + name)) score += 12;
+      const isTinyModel =
+        /\b(\d+(?:\.\d+)?b|nano|micro|lite|mini)\b/i.test(id + " " + name) &&
+        !/\b([1-9]\d+(?:\.\d+)?b)\b/i.test(id + " " + name) ||
+        /\blfm\b/i.test(id + " " + name);
+
+      if (!inIntel && !inProg && !isTinyModel) {
+        if (/coder|code|reasoning|thinking|math|ultra|pro|deepseek|nemotron|particle|qwen/i.test(id + " " + name)) {
+          score += 22;
+        }
       }
 
-      if (!inIntel && /\b(1b|1\.7b|2b|3b|4b|7b|8b|nano)\b/i.test(id + " " + name)) {
-        score -= 20;
+      if (isTinyModel) {
+        score -= 45;
       }
 
       return { score, supportsReasoning, inIntel, inProg };
@@ -2900,11 +2907,16 @@ ${tpl.gen.trim()}
           signal: state.abortController.signal,
         });
 
+
         if (!res.ok) {
           let errMsg = `HTTP ${res.status}`;
           try {
             const errJson = await res.json();
-            errMsg = errJson?.error?.message || errMsg;
+            const baseMsg = errJson?.error?.message || errMsg;
+            const providerName = errJson?.error?.metadata?.provider_name;
+            const rawDetail = errJson?.error?.metadata?.raw;
+            const extra = [providerName, rawDetail].filter(Boolean).join(": ");
+            errMsg = extra ? `${baseMsg} (${extra})` : baseMsg;
           } catch {}
           const err = new Error(errMsg);
           err.httpStatus = res.status;
@@ -2939,7 +2951,11 @@ ${tpl.gen.trim()}
             try { payload = JSON.parse(jsonStr); } catch { continue; }
 
             if (payload?.error) {
-              throw new Error(payload.error.message || JSON.stringify(payload.error));
+              const pName = payload.error?.metadata?.provider_name;
+              const pRaw = payload.error?.metadata?.raw;
+              const extra = [pName, pRaw].filter(Boolean).join(": ");
+              const msg = payload.error.message || JSON.stringify(payload.error);
+              throw new Error(extra ? `${msg} (${extra})` : msg);
             }
 
             if (provider === "openrouter") {
