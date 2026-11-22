@@ -161,6 +161,35 @@
       gap: 4px;
     }
 
+    #btnRefreshOrModels {
+      width: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #btnRefreshOrModels .refresh-icon {
+      display: block;
+      transition: transform 0.2s ease;
+    }
+    #btnRefreshOrModels.spinning {
+      border-color: var(--accent);
+      background: var(--accent-tint);
+      color: var(--accent);
+      cursor: wait;
+    }
+    #btnRefreshOrModels.spinning .refresh-icon {
+      animation: spin 0.75s linear infinite;
+    }
+    #btnRefreshOrModels.refreshed {
+      border-color: var(--green);
+      color: var(--green);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     select, button, input, textarea {
       font-family: inherit;
       color: var(--text);
@@ -839,7 +868,12 @@
       <div class="model-group">
         <select id="modelSelect" title="Model"></select>
         <input type="text" id="customOrModelInput" class="hidden" placeholder="author/model:free" />
-        <button class="btn-ghost hidden" id="btnRefreshOrModels" title="Refresh OpenRouter free CP models" style="padding:0 8px;">↻</button>
+        <button class="btn-ghost hidden" id="btnRefreshOrModels" title="Refresh OpenRouter free CP models">
+          <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+        </button>
       </div>
 
       <select id="thinkingSelect" title="Thinking Level">
@@ -1745,7 +1779,13 @@ Query cand by query tin-tout, then check
         return;
       }
       const btn = $("btnRefreshOrModels");
-      if (btn) btn.disabled = true;
+      const startedAt = performance.now();
+      let ok = false;
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.remove("refreshed");
+        btn.classList.add("spinning");
+      }
       try {
         const fetchJson = async (url) => {
           const r = await fetch(url);
@@ -1822,6 +1862,7 @@ Query cand by query tin-tout, then check
 
         if (freeText.length > 0) {
           state.orModels = freeText;
+          ok = true;
           try {
             localStorage.setItem(
               LS_KEYS.orModelsCache,
@@ -1831,7 +1872,18 @@ Query cand by query tin-tout, then check
         }
       } catch {
       } finally {
-        if (btn) btn.disabled = false;
+        if (btn) {
+          const elapsed = performance.now() - startedAt;
+          if (force && elapsed < 450) {
+            await new Promise((r) => setTimeout(r, 450 - elapsed));
+          }
+          btn.classList.remove("spinning");
+          btn.disabled = false;
+          if (force && ok) {
+            btn.classList.add("refreshed");
+            setTimeout(() => btn.classList.remove("refreshed"), 900);
+          }
+        }
         if (state.provider === "openrouter") {
           populateModelSelect();
           syncThinkingOptions();
