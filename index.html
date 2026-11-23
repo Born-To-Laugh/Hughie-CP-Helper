@@ -604,6 +604,12 @@
       flex-wrap: wrap;
     }
     .msg-meta strong { color: var(--text-strong); font-weight: 600; }
+    .msg-meta-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
     .tag {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11.5px;
@@ -762,10 +768,19 @@
       border: 1px solid var(--border);
       color: var(--text-soft);
     }
+    .copy-btn.msg-copy-btn {
+      height: 22px;
+      font-size: 11.5px;
+      padding: 0 8px;
+    }
     .copy-btn.active {
       border-color: var(--accent);
       color: var(--accent);
       background: var(--accent-tint);
+    }
+    .copy-btn.copied-ok {
+      border-color: var(--green);
+      color: var(--green);
     }
 
     .markdown-body pre {
@@ -1513,6 +1528,8 @@ Query cand by query tin-tout, then check
         statusError: "Lỗi",
         statusSaved: "Đã lưu",
         copy: "Copy",
+        copyPrompt: "Copy Prompt",
+        copyAnswer: "Copy Câu trả lời",
         copied: "Copied",
         wrap: "Xuống dòng",
         sourcesLabel: "Nguồn tham khảo:",
@@ -1673,6 +1690,8 @@ Query cand by query tin-tout, then check
         statusError: "Error",
         statusSaved: "Saved",
         copy: "Copy",
+        copyPrompt: "Copy Prompt",
+        copyAnswer: "Copy Answer",
         copied: "Copied",
         wrap: "Wrap",
         sourcesLabel: "Sources:",
@@ -1762,6 +1781,40 @@ Query cand by query tin-tout, then check
     const $ = (id) => document.getElementById(id);
     const t = (key) => (I18N[state.lang] || I18N.vi)[key] || key;
     const fmtNum = (n) => Number(n || 0).toLocaleString("en-US");
+
+    async function copyTextToClipboard(text) {
+      if (!text) return false;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {}
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        ta.style.pointerEvents = "none";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        ta.remove();
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+
+    function flashCopiedButton(btn, defaultTextKey) {
+      btn.textContent = t("copied");
+      btn.classList.add("copied-ok");
+      clearTimeout(btn._copyTimer);
+      btn._copyTimer = setTimeout(() => {
+        btn.textContent = t(defaultTextKey);
+        btn.classList.remove("copied-ok");
+      }, 1400);
+    }
 
     function getGeminiKey() { return (localStorage.getItem(LS_KEYS.apiKey) || "").trim(); }
     function getOrKey() { return (localStorage.getItem(LS_KEYS.orApiKey) || "").trim(); }
@@ -2224,6 +2277,12 @@ Query cand by query tin-tout, then check
       document.querySelectorAll("[data-i18n]").forEach((el) => {
         const key = el.getAttribute("data-i18n");
         if (I18N[state.lang][key]) el.textContent = I18N[state.lang][key];
+      });
+
+      document.querySelectorAll(".msg-copy-btn").forEach((btn) => {
+        if (btn.classList.contains("copied-ok")) return;
+        if (btn.dataset.copyRole === "prompt") btn.textContent = t("copyPrompt");
+        else if (btn.dataset.copyRole === "answer") btn.textContent = t("copyAnswer");
       });
 
       $("statementText").placeholder = t("phStatement");
@@ -2711,10 +2770,10 @@ ${tpl.gen.trim()}
         const copyBtn = document.createElement("button");
         copyBtn.className = "copy-btn";
         copyBtn.textContent = t("copy");
-        copyBtn.addEventListener("click", () => {
-          navigator.clipboard.writeText(codeEl.textContent);
-          copyBtn.textContent = t("copied");
-          setTimeout(() => (copyBtn.textContent = t("copy")), 1400);
+        copyBtn.addEventListener("click", async () => {
+          if (await copyTextToClipboard(codeEl.textContent)) {
+            flashCopiedButton(copyBtn, "copy");
+          }
         });
 
         actions.appendChild(wrapBtn);
@@ -2858,13 +2917,25 @@ ${tpl.gen.trim()}
 
       const card = document.createElement("div");
       card.className = "msg-card user";
+      card._rawText = text || "";
       card.innerHTML = `
         <div class="msg-meta">
           <span><strong>${t("userYou")}</strong></span>
-          <span class="tag">${badge}</span>
+          <div class="msg-meta-actions">
+            <span class="tag">${badge}</span>
+            <button type="button" class="copy-btn msg-copy-btn" data-copy-role="prompt">${t("copyPrompt")}</button>
+          </div>
         </div>
         <div class="markdown-body user-body"></div>
       `;
+
+      const copyBtn = card.querySelector(".msg-copy-btn");
+      copyBtn.addEventListener("click", async () => {
+        if (await copyTextToClipboard(card._rawText)) {
+          flashCopiedButton(copyBtn, "copyPrompt");
+        }
+      });
+
       renderMarkdown(card.querySelector(".user-body"), text, { escapeRawTags: true });
       targetContainer.appendChild(card);
       targetContainer.scrollTop = targetContainer.scrollHeight;
@@ -2876,10 +2947,14 @@ ${tpl.gen.trim()}
 
       const card = document.createElement("div");
       card.className = "msg-card";
+      card._rawAnswer = "";
       card.innerHTML = `
         <div class="msg-meta">
           <span><strong>${providerTitle}</strong> <span class="tag">${label}</span></span>
-          <span class="status-text" style="color:var(--accent);"></span>
+          <div class="msg-meta-actions">
+            <span class="status-text" style="color:var(--accent);"></span>
+            <button type="button" class="copy-btn msg-copy-btn hidden" data-copy-role="answer">${t("copyAnswer")}</button>
+          </div>
         </div>
         <details class="thought-box hidden">
           <summary>${t("thinkingHeader")}</summary>
@@ -2889,8 +2964,23 @@ ${tpl.gen.trim()}
         <div class="sources-bar hidden"></div>
         <div class="msg-tokens hidden"></div>
       `;
+
+      const copyBtn = card.querySelector(".msg-copy-btn");
+      copyBtn.addEventListener("click", async () => {
+        const textToCopy = card._rawAnswer || card.querySelector(".answer-body").innerText || "";
+        if (await copyTextToClipboard(textToCopy)) {
+          flashCopiedButton(copyBtn, "copyAnswer");
+        }
+      });
+
       targetContainer.appendChild(card);
       return card;
+    }
+
+    function setModelCardAnswerForCopy(card, answerText) {
+      card._rawAnswer = answerText || "";
+      const copyBtn = card.querySelector(".msg-copy-btn");
+      if (copyBtn) copyBtn.classList.toggle("hidden", !card._rawAnswer);
     }
 
     function saveToHistory(title, modelLabel, userText, answerText, thoughtText, usage, sessionType = "problem", providerName = "Gemini") {
@@ -2945,6 +3035,7 @@ ${tpl.gen.trim()}
       const card = createModelCard(box, item.providerName || "AI", item.modelLabel);
       card.querySelector(".status-text").textContent = t("statusSaved");
       card.querySelector(".status-text").style.color = "var(--green)";
+      setModelCardAnswerForCopy(card, item.answerText);
 
       if (item.thoughtText) {
         setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
@@ -3313,13 +3404,16 @@ ${tpl.gen.trim()}
             });
           }
           if (gotAnswer) {
+            setModelCardAnswerForCopy(card, fullAnswer);
             streamRenderer.update(fullAnswer);
           }
         }
 
         if (fullAnswer) {
+          setModelCardAnswerForCopy(card, fullAnswer);
           streamRenderer.finalize(fullAnswer);
         } else {
+          setModelCardAnswerForCopy(card, "");
           answerEl.innerHTML = `<span style="color:var(--muted);">${t("noTextWarn")}</span>`;
         }
 
@@ -3364,6 +3458,7 @@ ${tpl.gen.trim()}
         onComplete(fullAnswer, fullThought, latestUsage, false);
       } catch (err) {
         if (err.name === "AbortError") {
+          setModelCardAnswerForCopy(card, fullAnswer);
           if (fullAnswer) streamRenderer.finalize(fullAnswer);
           finalizeThoughtDisplay();
           statusEl.textContent = t("statusStopped");
@@ -3378,6 +3473,7 @@ ${tpl.gen.trim()}
           }
           onComplete(fullAnswer, fullThought, latestUsage, true);
         } else {
+          setModelCardAnswerForCopy(card, "");
           finalizeThoughtDisplay();
           statusEl.textContent = t("statusError");
           statusEl.style.color = "var(--red)";
@@ -3650,6 +3746,7 @@ ${tpl.gen.trim()}
       const card = createModelCard($("liveOutputScroll"), item.providerName || "AI", item.modelLabel);
       card.querySelector(".status-text").textContent = t("statusSaved");
       card.querySelector(".status-text").style.color = "var(--green)";
+      setModelCardAnswerForCopy(card, item.answerText);
       if (item.thoughtText) {
         setupLazyThoughtBox(card.querySelector(".thought-box"), card.querySelector(".thought-content"), item.thoughtText);
       }
